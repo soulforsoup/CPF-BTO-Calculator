@@ -491,6 +491,124 @@ tr.milestone-65 td { font-weight: 600; }
 /* FOOTER */
 .footer { margin-top: 3rem; }
 
+/* TOOLTIP */
+label .tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: help;
+  position: relative;
+  margin-left: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+label .tip:hover {
+  background: var(--accent);
+  color: white;
+}
+
+label .tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #334155;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  width: 240px;
+  max-width: 90vw;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  box-shadow: var(--shadow-lg);
+}
+
+label .tip:hover::after,
+label .tip.show::after {
+  opacity: 1;
+}
+
+label .tip.show {
+  background: var(--accent);
+  color: white;
+}
+
+/* AUTO-CALC DEPOSIT DISPLAY */
+.deposit-breakdown {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+.deposit-stage {
+  margin-bottom: 0.75rem;
+}
+
+.deposit-stage-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.deposit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.2rem 0;
+  font-size: 0.8rem;
+}
+
+.deposit-row .label { color: var(--text-secondary); }
+.deposit-row .value { font-weight: 600; }
+.deposit-row.subtotal {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+  margin-top: 0.3rem;
+}
+.deposit-row.total {
+  border-top: 2px solid var(--accent);
+  padding-top: 0.5rem;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+.deposit-row.total .label { color: var(--text-primary); font-weight: 700; }
+.deposit-row.total .value { color: var(--accent); font-weight: 800; }
+
+.deposit-row .cpf { color: var(--sa-color); }
+.deposit-row .cash { color: var(--cash-color); }
+.deposit-row .warning { color: var(--warning); font-weight: 700; }
+
+/* BANK LOAN WARNING */
+.loan-warning {
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--warning);
+  margin-top: 0.5rem;
+  display: none;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .navbar {

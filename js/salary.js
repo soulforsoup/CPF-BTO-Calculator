@@ -260,4 +260,20 @@ function renderCharts(hRows, wRows, hFinal, wFinal) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', restoreSalaryInputs);
+document.addEventListener('DOMContentLoaded', () => {
+  restoreSalaryInputs();
+  initTooltips();
+});
+
+function initTooltips() {
+  document.addEventListener('click', (e) => {
+    const tip = e.target.closest('.tip');
+    if (tip) {
+      e.stopPropagation();
+      document.querySelectorAll('.tip.show').forEach(t => { if (t !== tip) t.classList.remove('show'); });
+      tip.classList.toggle('show');
+    } else {
+      document.querySelectorAll('.tip.show').forEach(t => t.classList.remove('show'));
+    }
+  });
+}
