@@ -609,6 +609,67 @@ label .tip.show {
   display: none;
 }
 
+/* NEGATIVE CASH FLAG */
+.negative-cash {
+  color: var(--danger) !important;
+  font-weight: 800;
+  position: relative;
+}
+
+.negative-cash::after {
+  content: ' WARNING: NEGATIVE CASH';
+  font-size: 0.7rem;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* WAR CHEST DISPLAY */
+.warchest {
+  background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1));
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0.75rem 0;
+}
+
+/* RETIREMENT PROJECTION */
+.retirement-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.retirement-section .section-title {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.retirement-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.retirement-row .label { color: var(--text-secondary); }
+.retirement-row .value { font-weight: 600; }
+.retirement-row.subtotal { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.3rem; }
+.retirement-row.total { border-top: 2px solid var(--accent); padding-top: 0.5rem; margin-top: 0.3rem; }
+.retirement-row.total .label { color: var(--text-primary); font-weight: 700; }
+.retirement-row.total .value { color: var(--accent); font-weight: 800; }
+
+.retirement-stage-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .navbar {

@@ -20,7 +20,7 @@
   <main class="container">
     <div class="page-header">
       <h1>BTO Property Calculator</h1>
-      <p>Compare two BTO paths side-by-side. Standard vs PLH/Plus, with custom clawback and resale levy modeling.</p>
+      <p>Compare two BTO paths side-by-side. Project CPF to retirement. Model forever stay vs sell & buy resale.</p>
     </div>
 
     <div id="salary-badge" style="display:none;">
@@ -86,10 +86,22 @@
           <label>Buyer Max Income Ceiling ($) <span class="tip" data-tip="HDB income ceiling for the future buyer of your flat. Default $14,000 for HDB. Customizable for EC ($16,000).">?</span></label>
           <input type="number" id="buyer-ceiling" value="14000" min="0" step="1000">
         </div>
+        <div class="form-group">
+          <label>Target Retirement Age <span class="tip" data-tip="The age at which you want to see your CPF balance and estimated CPF LIFE payout. Default 65.">?</span></label>
+          <input type="number" id="retirement-age" value="65" min="55" max="70">
+        </div>
+        <div class="form-group">
+          <label>Mortgage Split <span class="tip" data-tip="How mortgage payments are split between spouses. 50/50: equal split. Proportional: based on each spouse's income ratio.">?</span></label>
+          <select id="mortgage-split">
+            <option value="50-50">50 / 50</option>
+            <option value="proportional">Proportional to Income</option>
+          </select>
+        </div>
       </div>
     </div>
 
     <div class="comparison-grid">
+      <!-- PATH A -->
       <div class="path-panel path-a">
         <h3>Path A</h3>
         <div class="form-grid">
@@ -133,49 +145,49 @@
             </select>
           </div>
           <div class="form-group" id="a-clawback-pct-group" style="display:none;">
-            <label>Clawback % <span class="tip" data-tip="Percentage of the resale price returned to HDB. Typically 6% (Plus) or 8% (PLH). Only applies to PLH/Plus flats.">?</span></label>
+            <label>Clawback % <span class="tip" data-tip="Percentage of the resale price returned to HDB. Typically 6% (Plus) or 8% (PLH).">?</span></label>
             <input type="number" id="a-clawback-pct" value="8" min="0" max="25" step="0.5">
           </div>
           <div class="form-group">
-            <label>Loan Type <span class="tip" data-tip="HDB Loan: entire downpayment can use CPF + grants. Bank Loan: minimum 5% of property value must be paid in cash across the entire transaction.">?</span></label>
+            <label>Loan Type <span class="tip" data-tip="HDB Loan: entire downpayment can use CPF + grants. Bank Loan: minimum 5% of property value must be paid in cash.">?</span></label>
             <select id="a-loan-type">
               <option value="hdb">HDB Loan</option>
               <option value="bank">Bank Loan</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Loan Interest Rate (%) <span class="tip" data-tip="HDB concessionary rate: 2.6% p.a. (0.1% above CPF OA rate of 2.5%). Bank loans vary — check current rates.">?</span></label>
+            <label>Loan Interest Rate (%) <span class="tip" data-tip="HDB concessionary rate: 2.6% p.a. (0.1% above CPF OA rate of 2.5%). Bank loans vary.">?</span></label>
             <input type="number" id="a-loan-rate" value="2.6" min="0" max="6" step="0.1">
           </div>
           <div class="form-group">
-            <label>Loan Tenure (Years) <span class="tip" data-tip="Number of years to repay the loan. Maximum 25 years for HDB loans. Longer tenure = lower monthly payments but more interest.">?</span></label>
+            <label>Loan Tenure (Years) <span class="tip" data-tip="Repayment period. Max 25 years for HDB loans. Longer tenure = lower monthly payments but more interest.">?</span></label>
             <input type="number" id="a-tenure" value="25" min="5" max="30">
           </div>
           <div class="form-group">
-            <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants (EHG, proximity grant, etc.). For BTO: disbursed at key collection. For Resale: disbursed at completion. Reduces the downpayment you need to fund.">?</span></label>
+            <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants (EHG, proximity grant, etc.). Disbursed at key collection (BTO) or completion (Resale).">?</span></label>
             <input type="number" id="a-grants" value="40000" min="0" step="1000">
           </div>
           <div class="form-group">
-            <label>Renovation & Furnishing ($) <span class="tip" data-tip="Cash-only expense for renovation and furniture. Cannot be funded from CPF. Added to your total cash outlay.">?</span></label>
+            <label>Renovation & Furnishing ($) <span class="tip" data-tip="Cash-only expense. Cannot be funded from CPF. Added to total cash outlay.">?</span></label>
             <input type="number" id="a-reno" value="30000" min="0" step="1000">
           </div>
           <div class="form-group">
-            <label>Monthly Property Tax & S&CC ($) <span class="tip" data-tip="Recurring monthly costs: property tax (based on Annual Value) + Service & Conservancy Charges. Paid in cash monthly.">?</span></label>
+            <label>Monthly Property Tax & S&CC ($) <span class="tip" data-tip="Recurring monthly costs. Paid in cash monthly.">?</span></label>
             <input type="number" id="a-monthly-costs" value="150" min="0" step="10">
           </div>
           <div class="form-group">
-            <label>Monthly HPS Premium ($) <span class="tip" data-tip="Home Protection Scheme — compulsory mortgage insurance if using CPF to pay mortgage. Deducted from CPF OA monthly.">?</span></label>
+            <label>Monthly HPS Premium ($) <span class="tip" data-tip="Home Protection Scheme — mortgage insurance. Deducted from CPF OA monthly.">?</span></label>
             <input type="number" id="a-hps" value="50" min="0" step="10">
           </div>
           <div class="form-group">
-            <label>Resale Levy <span class="tip" data-tip="Fixed quantum payable to HDB if buying a second subsidized flat. Only applies if toggle is on. Must be paid entirely in cash.">?</span></label>
+            <label>Resale Levy <span class="tip" data-tip="Fixed quantum if buying second subsidized flat. Only if toggle is on. Paid entirely in cash.">?</span></label>
             <div class="toggle-group">
               <div class="toggle" id="a-levy-toggle" onclick="toggleLevy('a')"></div>
               <span id="a-levy-label">Off</span>
             </div>
           </div>
           <div class="form-group" id="a-flat-type-group" style="display:none;">
-            <label>Previous Flat Type <span class="tip" data-tip="Select your previous subsidized flat type. The resale levy is a fixed quantum based on this: 2-Room $15k, 3-Room $30k, 4-Room $40k, 5-Room $45k, Executive $50k.">?</span></label>
+            <label>Previous Flat Type <span class="tip" data-tip="Levy by flat type: 2-Room $15k, 3-Room $30k, 4-Room $40k, 5-Room $45k, Executive $50k.">?</span></label>
             <select id="a-flat-type">
               <option value="4room">4-Room ($40,000)</option>
               <option value="3room">3-Room ($30,000)</option>
@@ -186,6 +198,59 @@
           </div>
         </div>
 
+        <!-- Scenario Toggle -->
+        <div class="form-grid" style="margin-top:0.75rem;">
+          <div class="form-group">
+            <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
+            <select id="a-scenario" onchange="onScenarioChange('a')">
+              <option value="forever">Forever Stay</option>
+              <option value="resale">Sell & Buy Resale</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- War Chest (shown when resale selected) -->
+        <div id="a-warchest" class="warchest" style="display:none;">
+          <div class="retirement-stage-title">YOUR WAR CHEST (After BTO Sale)</div>
+          <div class="retirement-row">
+            <span class="label">Net Cash Proceeds</span>
+            <span class="value cash" id="a-warchest-cash">$0</span>
+          </div>
+          <div class="retirement-row">
+            <span class="label">CPF Refunded to OA</span>
+            <span class="value cpf" id="a-warchest-cpf">$0</span>
+          </div>
+          <div class="retirement-row subtotal">
+            <span class="label">Total Available</span>
+            <span class="value" id="a-warchest-total">$0</span>
+          </div>
+        </div>
+
+        <!-- Resale Purchase Inputs (shown when resale selected) -->
+        <div id="a-resale-inputs" class="form-grid" style="display:none;margin-top:0.75rem;">
+          <div class="form-group">
+            <label>Resale Purchase Price ($) <span class="tip" data-tip="Price of the resale flat you'll buy after selling the BTO. Your war chest (above) shows what you have available.">?</span></label>
+            <input type="number" id="a-resale-price" value="500000" min="0" step="10000">
+          </div>
+          <div class="form-group">
+            <label>Resale Growth Rate (%) <span class="tip" data-tip="Annual appreciation of the resale flat. Used to project property value to retirement.">?</span></label>
+            <input type="number" id="a-resale-growth" value="2" min="-5" max="15" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Resale Loan Rate (%) <span class="tip" data-tip="Interest rate for the resale mortgage. HDB: 2.6%. Bank: varies.">?</span></label>
+            <input type="number" id="a-resale-loan-rate" value="2.6" min="0" max="6" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Resale Loan Tenure (Years) <span class="tip" data-tip="Max 25 years for HDB, 30 for bank.">?</span></label>
+            <input type="number" id="a-resale-tenure" value="25" min="5" max="30">
+          </div>
+          <div class="form-group">
+            <label>Resale Grants ($) <span class="tip" data-tip="Typically $0 for a second flat. You usually don't qualify for housing grants on a second subsidized purchase.">?</span></label>
+            <input type="number" id="a-resale-grants" value="0" min="0" step="1000">
+          </div>
+        </div>
+
+        <!-- Deposit Breakdown -->
         <div id="a-deposit-section" class="deposit-breakdown" style="display:none;">
           <div class="deposit-stage">
             <div class="deposit-stage-title" id="a-stage1-title">Stage 1: Signing (Now)</div>
@@ -203,18 +268,19 @@
         <div id="a-loan-warning" class="loan-warning"></div>
       </div>
 
+      <!-- PATH B -->
       <div class="path-panel path-b">
         <h3>Path B</h3>
         <div class="form-grid">
           <div class="form-group">
-            <label>Timeline <span class="tip" data-tip="BTO: new flat with build time before MOP starts. Resale: existing flat, ready to move in immediately.">?</span></label>
+            <label>Timeline <span class="tip" data-tip="BTO: new flat with build time. Resale: existing flat, ready immediately.">?</span></label>
             <select id="b-timeline" onchange="onTimelineChange('b')">
               <option value="bto" selected>BTO / New Build</option>
               <option value="resale">Resale / Ready</option>
             </select>
           </div>
           <div class="form-group" id="b-build-time-group">
-            <label>Build Time (Years) <span class="tip" data-tip="Years from signing to key collection. Typical BTO: 3-5 years. CPF OA accumulates contributions during this period.">?</span></label>
+            <label>Build Time (Years) <span class="tip" data-tip="Years from signing to key collection. Typical BTO: 3-5 years.">?</span></label>
             <select id="b-build-time">
               <option value="3">3 years</option>
               <option value="4" selected>4 years</option>
@@ -222,23 +288,23 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Purchase Price ($) <span class="tip" data-tip="The price of the flat before any grants or subsidies. This determines your loan amount and stamp duty.">?</span></label>
+            <label>Purchase Price ($) <span class="tip" data-tip="Flat price before grants or subsidies. Determines loan amount and stamp duty.">?</span></label>
             <input type="number" id="b-price" value="500000" min="0" step="10000" oninput="onPriceChange('b')">
           </div>
           <div class="form-group" id="b-valuation-group" style="display:none;">
-            <label>HDB Valuation ($) <span class="tip" data-tip="HDB's official valuation. If purchase price exceeds this, the excess is Cash-Over-Valuation (COV) — paid in cash only. Defaults to purchase price.">?</span></label>
+            <label>HDB Valuation ($) <span class="tip" data-tip="HDB's official valuation. Excess over this is COV — cash only. Defaults to purchase price.">?</span></label>
             <input type="number" id="b-valuation" value="500000" min="0" step="1000" oninput="onValuationManual('b')">
           </div>
           <div class="form-group">
-            <label>MOP (Years) <span class="tip" data-tip="Minimum Occupation Period — you must live in the flat for this many years before selling. Standard HDB BTO: 5 years.">?</span></label>
+            <label>MOP (Years) <span class="tip" data-tip="Minimum Occupation Period. Standard HDB BTO: 5 years.">?</span></label>
             <input type="number" id="b-mop" value="5" min="1" max="10">
           </div>
           <div class="form-group">
-            <label>Annual Growth Rate (%) <span class="tip" data-tip="Expected annual property appreciation. Singapore HDB historical average is ~2-4% p.a. Used to project your selling price.">?</span></label>
+            <label>Annual Growth Rate (%) <span class="tip" data-tip="Expected annual property appreciation. Singapore HDB historical: ~2-4% p.a.">?</span></label>
             <input type="number" id="b-growth" value="4" min="-5" max="15" step="0.5">
           </div>
           <div class="form-group">
-            <label>Clawback Type <span class="tip" data-tip="Standard BTOs have no subsidy clawback. PLH/Plus flats require returning a percentage of the resale price to HDB when you sell.">?</span></label>
+            <label>Clawback Type <span class="tip" data-tip="Standard: no clawback. PLH/Plus: return % of resale price to HDB.">?</span></label>
             <select id="b-clawback-type" onchange="onClawbackChange('b')">
               <option value="plh" selected>PLH</option>
               <option value="plus">Plus</option>
@@ -246,49 +312,49 @@
             </select>
           </div>
           <div class="form-group" id="b-clawback-pct-group">
-            <label>Clawback % <span class="tip" data-tip="Percentage of the resale price returned to HDB. Typically 6% (Plus) or 8% (PLH). Only applies to PLH/Plus flats.">?</span></label>
+            <label>Clawback % <span class="tip" data-tip="% of resale price returned to HDB. Typically 6% (Plus) or 8% (PLH).">?</span></label>
             <input type="number" id="b-clawback-pct" value="8" min="0" max="25" step="0.5">
           </div>
           <div class="form-group">
-            <label>Loan Type <span class="tip" data-tip="HDB Loan: entire downpayment can use CPF + grants. Bank Loan: minimum 5% of property value must be paid in cash across the entire transaction.">?</span></label>
+            <label>Loan Type <span class="tip" data-tip="HDB Loan: entire DP can use CPF + grants. Bank Loan: minimum 5% must be cash.">?</span></label>
             <select id="b-loan-type">
               <option value="hdb">HDB Loan</option>
               <option value="bank">Bank Loan</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Loan Interest Rate (%) <span class="tip" data-tip="HDB concessionary rate: 2.6% p.a. (0.1% above CPF OA rate of 2.5%). Bank loans vary — check current rates.">?</span></label>
+            <label>Loan Interest Rate (%) <span class="tip" data-tip="HDB: 2.6% p.a. Bank: varies.">?</span></label>
             <input type="number" id="b-loan-rate" value="2.6" min="0" max="6" step="0.1">
           </div>
           <div class="form-group">
-            <label>Loan Tenure (Years) <span class="tip" data-tip="Number of years to repay the loan. Maximum 25 years for HDB loans. Longer tenure = lower monthly payments but more interest.">?</span></label>
+            <label>Loan Tenure (Years) <span class="tip" data-tip="Max 25 for HDB, 30 for bank.">?</span></label>
             <input type="number" id="b-tenure" value="25" min="5" max="30">
           </div>
           <div class="form-group">
-            <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants (EHG, proximity grant, etc.). For BTO: disbursed at key collection. For Resale: disbursed at completion. Reduces the downpayment you need to fund.">?</span></label>
+            <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants. Disbursed at key collection (BTO) or completion (Resale).">?</span></label>
             <input type="number" id="b-grants" value="50000" min="0" step="1000">
           </div>
           <div class="form-group">
-            <label>Renovation & Furnishing ($) <span class="tip" data-tip="Cash-only expense for renovation and furniture. Cannot be funded from CPF. Added to your total cash outlay.">?</span></label>
+            <label>Renovation & Furnishing ($) <span class="tip" data-tip="Cash-only expense. Cannot use CPF.">?</span></label>
             <input type="number" id="b-reno" value="35000" min="0" step="1000">
           </div>
           <div class="form-group">
-            <label>Monthly Property Tax & S&CC ($) <span class="tip" data-tip="Recurring monthly costs: property tax (based on Annual Value) + Service & Conservancy Charges. Paid in cash monthly.">?</span></label>
+            <label>Monthly Property Tax & S&CC ($) <span class="tip" data-tip="Recurring monthly costs. Paid in cash.">?</span></label>
             <input type="number" id="b-monthly-costs" value="180" min="0" step="10">
           </div>
           <div class="form-group">
-            <label>Monthly HPS Premium ($) <span class="tip" data-tip="Home Protection Scheme — compulsory mortgage insurance if using CPF to pay mortgage. Deducted from CPF OA monthly.">?</span></label>
+            <label>Monthly HPS Premium ($) <span class="tip" data-tip="Home Protection Scheme — mortgage insurance. Deducted from CPF OA.">?</span></label>
             <input type="number" id="b-hps" value="60" min="0" step="10">
           </div>
           <div class="form-group">
-            <label>Resale Levy <span class="tip" data-tip="Fixed quantum payable to HDB if buying a second subsidized flat. Only applies if toggle is on. Must be paid entirely in cash.">?</span></label>
+            <label>Resale Levy <span class="tip" data-tip="Fixed quantum if buying second subsidized flat. Paid entirely in cash.">?</span></label>
             <div class="toggle-group">
               <div class="toggle" id="b-levy-toggle" onclick="toggleLevy('b')"></div>
               <span id="b-levy-label">Off</span>
             </div>
           </div>
           <div class="form-group" id="b-flat-type-group" style="display:none;">
-            <label>Previous Flat Type <span class="tip" data-tip="Select your previous subsidized flat type. The resale levy is a fixed quantum based on this: 2-Room $15k, 3-Room $30k, 4-Room $40k, 5-Room $45k, Executive $50k.">?</span></label>
+            <label>Previous Flat Type <span class="tip" data-tip="Levy by type: 2-Room $15k, 3-Room $30k, 4-Room $40k, 5-Room $45k, Executive $50k.">?</span></label>
             <select id="b-flat-type">
               <option value="4room">4-Room ($40,000)</option>
               <option value="3room">3-Room ($30,000)</option>
@@ -299,6 +365,59 @@
           </div>
         </div>
 
+        <!-- Scenario Toggle -->
+        <div class="form-grid" style="margin-top:0.75rem;">
+          <div class="form-group">
+            <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
+            <select id="b-scenario" onchange="onScenarioChange('b')">
+              <option value="forever">Forever Stay</option>
+              <option value="resale">Sell & Buy Resale</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- War Chest -->
+        <div id="b-warchest" class="warchest" style="display:none;">
+          <div class="retirement-stage-title">YOUR WAR CHEST (After BTO Sale)</div>
+          <div class="retirement-row">
+            <span class="label">Net Cash Proceeds</span>
+            <span class="value cash" id="b-warchest-cash">$0</span>
+          </div>
+          <div class="retirement-row">
+            <span class="label">CPF Refunded to OA</span>
+            <span class="value cpf" id="b-warchest-cpf">$0</span>
+          </div>
+          <div class="retirement-row subtotal">
+            <span class="label">Total Available</span>
+            <span class="value" id="b-warchest-total">$0</span>
+          </div>
+        </div>
+
+        <!-- Resale Purchase Inputs -->
+        <div id="b-resale-inputs" class="form-grid" style="display:none;margin-top:0.75rem;">
+          <div class="form-group">
+            <label>Resale Purchase Price ($) <span class="tip" data-tip="Price of the resale flat. Your war chest shows what you have available.">?</span></label>
+            <input type="number" id="b-resale-price" value="600000" min="0" step="10000">
+          </div>
+          <div class="form-group">
+            <label>Resale Growth Rate (%) <span class="tip" data-tip="Annual appreciation of the resale flat.">?</span></label>
+            <input type="number" id="b-resale-growth" value="2" min="-5" max="15" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Resale Loan Rate (%) <span class="tip" data-tip="HDB: 2.6%. Bank: varies.">?</span></label>
+            <input type="number" id="b-resale-loan-rate" value="2.6" min="0" max="6" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Resale Loan Tenure (Years) <span class="tip" data-tip="Max 25 for HDB, 30 for bank.">?</span></label>
+            <input type="number" id="b-resale-tenure" value="25" min="5" max="30">
+          </div>
+          <div class="form-group">
+            <label>Resale Grants ($) <span class="tip" data-tip="Typically $0 for second flat.">?</span></label>
+            <input type="number" id="b-resale-grants" value="0" min="0" step="1000">
+          </div>
+        </div>
+
+        <!-- Deposit Breakdown -->
         <div id="b-deposit-section" class="deposit-breakdown" style="display:none;">
           <div class="deposit-stage">
             <div class="deposit-stage-title" id="b-stage1-title">Stage 1: Signing (Now)</div>
@@ -325,25 +444,32 @@
         <div class="path-panel path-b" id="b-results"></div>
       </div>
 
+      <!-- Retirement Projections -->
+      <div class="comparison-grid">
+        <div class="retirement-section path-a" id="a-retirement"></div>
+        <div class="retirement-section path-b" id="b-retirement"></div>
+      </div>
+
+      <!-- Charts -->
       <div class="charts-grid">
+        <div class="chart-card">
+          <h3>CPF Trajectory to Retirement</h3>
+          <canvas id="chart-cpf-trajectory"></canvas>
+        </div>
         <div class="chart-card">
           <h3>Net Cash Proceeds Comparison</h3>
           <canvas id="chart-proceeds"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>Property Value vs Mortgage</h3>
-          <canvas id="chart-value-mortgage"></canvas>
         </div>
       </div>
 
       <div class="charts-grid">
         <div class="chart-card">
-          <h3>Household Wealth Breakdown</h3>
-          <canvas id="chart-household"></canvas>
+          <h3>Property Value vs Mortgage</h3>
+          <canvas id="chart-value-mortgage"></canvas>
         </div>
         <div class="chart-card">
-          <h3>Snapshots Comparison</h3>
-          <canvas id="chart-snapshots"></canvas>
+          <h3>Net Worth Comparison at Retirement</h3>
+          <canvas id="chart-networth"></canvas>
         </div>
       </div>
     </div>

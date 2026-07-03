@@ -6,12 +6,15 @@ const BTO_SHARED_IDS = [
   's1-income','s2-income','s1-increment','s2-increment',
   's1-oa','s1-sa','s1-ma','s2-oa','s2-sa','s2-ma',
   's1-age','s2-age','monthly-cash-savings','buyer-ceiling',
+  'retirement-age','mortgage-split',
 ];
 
 const BTO_PATH_IDS = [
   'timeline','build-time','price','valuation','mop','growth',
   'clawback-type','clawback-pct','loan-type','loan-rate','tenure',
   'grants','reno','monthly-costs','hps','flat-type',
+  'scenario',
+  'resale-price','resale-growth','resale-loan-rate','resale-tenure','resale-grants',
 ];
 
 function toggleLevy(path) {
@@ -49,6 +52,12 @@ function onClawbackChange(path) {
   document.getElementById(path + '-clawback-pct-group').style.display = type === 'none' ? 'none' : 'block';
 }
 
+function onScenarioChange(path) {
+  const scenario = document.getElementById(path + '-scenario').value;
+  document.getElementById(path + '-warchest').style.display = scenario === 'resale' ? 'block' : 'none';
+  document.getElementById(path + '-resale-inputs').style.display = scenario === 'resale' ? 'grid' : 'none';
+}
+
 function autoCalcDeposit(path) {
   const shared = readShared();
   const result = calcPath(path, shared);
@@ -71,6 +80,8 @@ function readShared() {
     s2Age: +document.getElementById('s2-age').value,
     monthlyCashSavings: +document.getElementById('monthly-cash-savings').value,
     buyerCeiling: +document.getElementById('buyer-ceiling').value,
+    retirementAge: +document.getElementById('retirement-age').value,
+    mortgageSplit: document.getElementById('mortgage-split').value,
   };
 }
 
@@ -91,6 +102,8 @@ function calcPath(p, shared) {
   const monthlyCosts = +document.getElementById(p + '-monthly-costs').value;
   const hps = +document.getElementById(p + '-hps').value;
   const flatType = document.getElementById(p + '-flat-type').value;
+  const scenario = document.getElementById(p + '-scenario').value;
+  const retirementAge = shared.retirementAge;
 
   const totalYears = buildTime + mop;
   const bsd = calcBSD(price);
@@ -148,7 +161,6 @@ function calcPath(p, shared) {
     if (excessGrant > 0) stage2Items.push({ label: 'Excess Grant → Loan', value: -excessGrant, cls: 'cpf' });
   } else {
     const optionFees = 5000;
-    const s1Total = optionFees + bsd;
     s1Cpf = Math.min(currentCombinedOA, bsd);
     s1Cash = optionFees + Math.max(0, bsd - s1Cpf);
 
@@ -239,10 +251,143 @@ function calcPath(p, shared) {
   const maxBuyerLoan = Math.round(maxBuyerIncome * CPF_CONFIG.hdbLtv * 0.3 * tenure * 12);
   const cashCPFGap = sellingPrice - maxBuyerLoan;
 
+  let mortgageSplit = shared.mortgageSplit;
+  let s1MortgageShare, s2MortgageShare;
+  if (mortgageSplit === 'proportional') {
+    const totalIncome = s1Final.salary + s2Final.salary;
+    s1MortgageShare = totalIncome > 0 ? s1Final.salary / totalIncome : 0.5;
+    s2MortgageShare = 1 - s1MortgageShare;
+  } else {
+    s1MortgageShare = 0.5;
+    s2MortgageShare = 0.5;
+  }
+
+  let s1Retire = null, s2Retire = null;
+  let resaleData = null;
+
+  if (scenario === 'resale') {
+    const resalePrice = +document.getElementById(p + '-resale-price').value;
+    const resaleGrowth = +document.getElementById(p + '-resale-growth').value;
+    const resaleLoanRate = +document.getElementById(p + '-resale-loan-rate').value / 100;
+    const resaleTenure = +document.getElementById(p + '-resale-tenure').value;
+    const resaleGrants = +document.getElementById(p + '-resale-grants').value || 0;
+
+    const resaleBSD = calcBSD(resalePrice);
+    const resaleDP = resalePrice * 0.25;
+    const resaleNetDP = Math.max(0, resaleDP - resaleGrants);
+
+    const totalOAAtSale = s1Final.oa + s2Final.oa;
+    const s1Share = totalOAAtSale > 0 ? s1Final.oa / totalOAAtSale : 0.5;
+    const s2Share = 1 - s1Share;
+
+    const s1ForBSD = Math.min(s1Final.oa, resaleBSD * s1Share);
+    const s2ForBSD = Math.min(s2Final.oa, resaleBSD * s2Share);
+    const s1AfterBSD = s1Final.oa - s1ForBSD;
+    const s2AfterBSD = s2Final.oa - s2ForBSD;
+
+    const s1ForDP = Math.min(s1AfterBSD, resaleNetDP * s1Share);
+    const s2ForDP = Math.min(s2AfterBSD, resaleNetDP * s2Share);
+
+    const cashForResale = Math.max(0, resaleNetDP - s1ForDP - s2ForDP);
+    const cashAfterResale = netCashProceeds - cashForResale;
+
+    const s1OaAfter = s1AfterBSD - s1ForDP;
+    const s2OaAfter = s2AfterBSD - s2ForDP;
+
+    const resaleLoan = Math.round(resalePrice * 0.75);
+    const resaleMortgage = calcMortgage(resaleLoan, resaleLoanRate, resaleTenure);
+
+    const totalIncome = s1Final.salary + s2Final.salary;
+    const r1Share = totalIncome > 0 ? s1Final.salary / totalIncome : 0.5;
+    const r2Share = 1 - r1Share;
+
+    s1Retire = projectCPF({
+      currentAge: shared.s1Age + totalYears,
+      grossMonthlySalary: s1Final.salary,
+      annualIncrement: shared.s1Increment,
+      currentOA: s1OaAfter, currentSA: s1Final.sa, currentMA: s1Final.ma,
+      targetAge: retirementAge,
+      monthlyCashSavings: shared.monthlyCashSavings / 2,
+      annualBonus: 0,
+      monthlyMortgage: resaleMortgage * r1Share,
+      mortgageTenure: resaleTenure,
+      mortgageStartAge: shared.s1Age + totalYears,
+      startingCash: cashAfterResale / 2,
+    });
+
+    s2Retire = projectCPF({
+      currentAge: shared.s2Age + totalYears,
+      grossMonthlySalary: s2Final.salary,
+      annualIncrement: shared.s2Increment,
+      currentOA: s2OaAfter, currentSA: s2Final.sa, currentMA: s2Final.ma,
+      targetAge: retirementAge,
+      monthlyCashSavings: shared.monthlyCashSavings / 2,
+      annualBonus: 0,
+      monthlyMortgage: resaleMortgage * r2Share,
+      mortgageTenure: resaleTenure,
+      mortgageStartAge: shared.s2Age + totalYears,
+      startingCash: cashAfterResale / 2,
+    });
+
+    const yearsInResale = retirementAge - (shared.s1Age + totalYears);
+    resaleData = {
+      resalePrice, resaleBSD, resaleNetDP, resaleLoan, resaleMortgage,
+      cashForResale, cashAfterResale,
+      s1ForBSD, s2ForBSD, s1ForDP, s2ForDP,
+      s1OaAfter, s2OaAfter,
+      resaleValueAtRetire: calcSellingPrice(resalePrice, resaleGrowth, yearsInResale),
+    };
+  } else {
+    const mortgageEndAge = shared.s1Age + buildTime + tenure;
+    const monthsRemainingAfterSale = Math.max(0, (mortgageEndAge - (shared.s1Age + totalYears)) * 12);
+    const yearsRemainingAfterSale = Math.max(0, mortgageEndAge - (shared.s1Age + totalYears));
+
+    s1Retire = projectCPF({
+      currentAge: shared.s1Age + totalYears,
+      grossMonthlySalary: s1Final.salary,
+      annualIncrement: shared.s1Increment,
+      currentOA: s1Final.oa, currentSA: s1Final.sa, currentMA: s1Final.ma,
+      targetAge: retirementAge,
+      monthlyCashSavings: shared.monthlyCashSavings / 2,
+      annualBonus: 0,
+      monthlyMortgage: yearsRemainingAfterSale > 0 ? monthlyMortgage * s1MortgageShare : 0,
+      mortgageTenure: yearsRemainingAfterSale,
+      mortgageStartAge: shared.s1Age + totalYears,
+    });
+
+    s2Retire = projectCPF({
+      currentAge: shared.s2Age + totalYears,
+      grossMonthlySalary: s2Final.salary,
+      annualIncrement: shared.s2Increment,
+      currentOA: s2Final.oa, currentSA: s2Final.sa, currentMA: s2Final.ma,
+      targetAge: retirementAge,
+      monthlyCashSavings: shared.monthlyCashSavings / 2,
+      annualBonus: 0,
+      monthlyMortgage: yearsRemainingAfterSale > 0 ? monthlyMortgage * s2MortgageShare : 0,
+      mortgageTenure: yearsRemainingAfterSale,
+      mortgageStartAge: shared.s2Age + totalYears,
+    });
+  }
+
+  const s1AtRetire = s1Retire[s1Retire.length - 1];
+  const s2AtRetire = s2Retire[s2Retire.length - 1];
+
+  const yearsOwned = retirementAge - shared.s1Age;
+  const propertyValue = calcSellingPrice(price, growth, yearsOwned);
+
+  const combinedCPFAtRetire = s1AtRetire.totalCPF + s2AtRetire.totalCPF;
+  const combinedCashAtRetire = s1AtRetire.cash + s2AtRetire.cash;
+  const totalPropertyValue = resaleData ? resaleData.resaleValueAtRetire : propertyValue;
+  const totalNetWorthAtRetire = combinedCPFAtRetire + combinedCashAtRetire + totalPropertyValue;
+
+  const cpfLife1 = calcCPFLife(s1AtRetire.ra);
+  const cpfLife2 = calcCPFLife(s2AtRetire.ra);
+
   return {
     timeline, buildTime, price, valuation, mop, growth, totalYears,
     clawbackType, clawbackPct, loanType, loanRate, tenure,
     grants, reno, monthlyCosts, hps, flatType,
+    scenario, retirementAge,
     loanAmount, effectiveLoan, monthlyMortgage, bsd, cov, combinedOA,
     totalCashDeployed, totalCPFUsed, accruedCPF, mortgageBalanceAtMOP,
     careerCash, careerCashSaved,
@@ -253,6 +398,12 @@ function calcPath(p, shared) {
     s1Cpf, s1Cash, s2Cpf, s2Cash, totalCpf, totalCash,
     stage1Label, stage2Label, stage1Items, stage2Items,
     loanWarning, projectedCombinedOA,
+    s1MortgageShare, s2MortgageShare,
+    s1AtRetire, s2AtRetire,
+    combinedCPFAtRetire, combinedCashAtRetire,
+    totalPropertyValue, totalNetWorthAtRetire,
+    cpfLife1, cpfLife2, cpfLifeTotal: cpfLife1 + cpfLife2,
+    resaleData,
   };
 }
 
@@ -304,6 +455,60 @@ function renderDepositBreakdown(r, path) {
   } else {
     warning.style.display = 'none';
   }
+
+  if (r.scenario === 'resale') {
+    document.getElementById(path + '-warchest-cash').textContent = formatCurrency(r.netCashProceeds);
+    document.getElementById(path + '-warchest-cpf').textContent = formatCurrency(r.cpfRefunded);
+    document.getElementById(path + '-warchest-total').textContent = formatCurrency(r.netCashProceeds + r.cpfRefunded);
+  }
+}
+
+function renderRetirementProjection(r, path) {
+  const el = document.getElementById(path + '-retirement');
+  const s1 = r.s1AtRetire;
+  const s2 = r.s2AtRetire;
+  const cashClass1 = s1.cash < 0 ? ' negative-cash' : '';
+  const cashClass2 = s2.cash < 0 ? ' negative-cash' : '';
+  const combinedCashClass = r.combinedCashAtRetire < 0 ? ' negative-cash' : '';
+
+  let html = `<div class="section-title" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:0.5rem;margin-bottom:1rem;">RETIREMENT PROJECTION (Age ${r.retirementAge})</div>`;
+
+  if (r.scenario === 'resale' && r.resaleData) {
+    const rd = r.resaleData;
+    html += `
+      <div class="retirement-stage-title">After BTO Sale</div>
+      <div class="retirement-row"><span class="label">Net Cash Proceeds</span><span class="value cash">${formatCurrency(r.netCashProceeds)}</span></div>
+      <div class="retirement-row"><span class="label">CPF Refunded to OA</span><span class="value cpf">${formatCurrency(r.cpfRefunded)}</span></div>
+      <div class="retirement-stage-title" style="margin-top:0.75rem;">Resale Purchase</div>
+      <div class="retirement-row"><span class="label">Resale Price</span><span class="value">${formatCurrency(rd.resalePrice)}</span></div>
+      <div class="retirement-row"><span class="label">BSD</span><span class="value">${formatCurrency(rd.resaleBSD)}</span></div>
+      <div class="retirement-row"><span class="label">Downpayment (25%)</span><span class="value">${formatCurrency(rd.resaleNetDP)}</span></div>
+      <div class="retirement-row"><span class="label">├─ CPF Used</span><span class="value cpf">${formatCurrency(rd.s1ForDP + rd.s2ForDP)}</span></div>
+      <div class="retirement-row"><span class="label">└─ Cash Used</span><span class="value cash">${formatCurrency(rd.cashForResale)}</span></div>
+      <div class="retirement-row"><span class="label">Resale Loan</span><span class="value">${formatCurrency(rd.resaleLoan)}</span></div>
+      <div class="retirement-row"><span class="label">Monthly Mortgage</span><span class="value">${formatCurrency(rd.resaleMortgage)}</span></div>
+      <div class="retirement-row"><span class="label">Cash Remaining</span><span class="value${rd.cashAfterResale < 0 ? ' negative-cash' : ''}">${formatCurrency(rd.cashAfterResale)}</span></div>
+      <div style="border-top:1px solid var(--border);margin:0.5rem 0;"></div>
+    `;
+  }
+
+  html += `
+    <div class="retirement-stage-title">Husband at ${r.retirementAge}</div>
+    <div class="retirement-row"><span class="label">CPF (OA + RA + MA)</span><span class="value cpf">${formatCurrency(s1.totalCPF)}</span></div>
+    <div class="retirement-row"><span class="label">Cash</span><span class="value${cashClass1}">${formatCurrency(s1.cash)}</span></div>
+    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout</span><span class="value">${formatCurrency(r.cpfLife1)}/mo</span></div>
+    <div class="retirement-stage-title" style="margin-top:0.75rem;">Wife at ${r.retirementAge}</div>
+    <div class="retirement-row"><span class="label">CPF (OA + RA + MA)</span><span class="value cpf">${formatCurrency(s2.totalCPF)}</span></div>
+    <div class="retirement-row"><span class="label">Cash</span><span class="value${cashClass2}">${formatCurrency(s2.cash)}</span></div>
+    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout</span><span class="value">${formatCurrency(r.cpfLife2)}/mo</span></div>
+    <div class="retirement-row total"><span class="label">Combined CPF</span><span class="value cpf">${formatCurrency(r.combinedCPFAtRetire)}</span></div>
+    <div class="retirement-row total"><span class="label">Combined Cash</span><span class="value${combinedCashClass}">${formatCurrency(r.combinedCashAtRetire)}</span></div>
+    <div class="retirement-row total"><span class="label">Property Value (est.)</span><span class="value">${formatCurrency(r.totalPropertyValue)}</span></div>
+    <div class="retirement-row total"><span class="label">Total Net Worth</span><span class="value">${formatCurrency(r.totalNetWorthAtRetire)}</span></div>
+    <div class="retirement-row total"><span class="label">Combined CPF LIFE</span><span class="value">${formatCurrency(r.cpfLifeTotal)}/mo</span></div>
+  `;
+
+  el.innerHTML = html;
 }
 
 const BTO_VALUATION_IDS = ['a-valuation', 'b-valuation'];
@@ -312,7 +517,10 @@ function saveBTOInputs() {
   const data = {};
   BTO_SHARED_IDS.forEach(id => { data[id] = document.getElementById(id).value; });
   ['a','b'].forEach(p => {
-    BTO_PATH_IDS.forEach(id => { data[p + '-' + id] = document.getElementById(p + '-' + id).value; });
+    BTO_PATH_IDS.forEach(id => {
+      const el = document.getElementById(p + '-' + id);
+      if (el) data[p + '-' + id] = el.value;
+    });
     data[p + '-levy'] = levyState[p];
     data[p + '-valuation-manual'] = valuationManual[p];
   });
@@ -324,7 +532,10 @@ function restoreBTOInputs() {
     const saved = JSON.parse(localStorage.getItem('cpf_bto_inputs'));
     if (!saved) return;
     BTO_SHARED_IDS.forEach(id => {
-      if (saved[id] !== undefined) document.getElementById(id).value = saved[id];
+      if (saved[id] !== undefined) {
+        const el = document.getElementById(id);
+        if (el) el.value = saved[id];
+      }
     });
     ['a','b'].forEach(p => {
       BTO_PATH_IDS.forEach(id => {
@@ -340,6 +551,7 @@ function restoreBTOInputs() {
       if (saved[p + '-valuation-manual']) valuationManual[p] = true;
       onTimelineChange(p);
       onClawbackChange(p);
+      onScenarioChange(p);
     });
   } catch (e) {}
 }
@@ -399,6 +611,8 @@ function calculateBTO() {
 
   renderBTOResults(pathA, 'a');
   renderBTOResults(pathB, 'b');
+  renderRetirementProjection(pathA, 'a');
+  renderRetirementProjection(pathB, 'b');
   renderBTOCharts(pathA, pathB);
 
   document.getElementById('bto-results').style.display = 'block';
@@ -467,6 +681,51 @@ function renderBTOCharts(a, b) {
     },
   };
 
+  // CPF Trajectory to Retirement
+  const retireAge = Math.max(a.retirementAge, b.retirementAge);
+  const startAge = Math.min(a.s1Proj[0].age, b.s1Proj[0].age);
+  const ages = Array.from({ length: retireAge - startAge + 1 }, (_, i) => startAge + i);
+
+  function getCpfAtAge(proj, targetAge) {
+    const row = proj.find(r => r.age === targetAge);
+    return row ? row.totalCPF : proj[proj.length - 1].totalCPF;
+  }
+
+  const aCpfTrajectory = ages.map(age => {
+    if (age <= a.s1Proj[a.s1Proj.length - 1].age) {
+      return getCpfAtAge(a.s1Proj, age) + getCpfAtAge(a.s2Proj, age);
+    } else if (a.s1AtRetire && age <= a.retirementAge) {
+      const r1 = a.s1Retire.find(r => r.age === age);
+      const r2 = a.s2Retire.find(r => r.age === age);
+      if (r1 && r2) return r1.totalCPF + r2.totalCPF;
+    }
+    return null;
+  });
+
+  const bCpfTrajectory = ages.map(age => {
+    if (age <= b.s1Proj[b.s1Proj.length - 1].age) {
+      return getCpfAtAge(b.s1Proj, age) + getCpfAtAge(b.s2Proj, age);
+    } else if (b.s1AtRetire && age <= b.retirementAge) {
+      const r1 = b.s1Retire.find(r => r.age === age);
+      const r2 = b.s2Retire.find(r => r.age === age);
+      if (r1 && r2) return r1.totalCPF + r2.totalCPF;
+    }
+    return null;
+  });
+
+  btoCharts.cpfTrajectory = new Chart(document.getElementById('chart-cpf-trajectory'), {
+    type: 'line',
+    data: {
+      labels: ages,
+      datasets: [
+        { label: 'Path A', data: aCpfTrajectory, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3, pointRadius: 1 },
+        { label: 'Path B', data: bCpfTrajectory, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3, pointRadius: 1 },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, x: { ...chartDefaults.scales.x, title: { display: true, text: 'Age', color: '#64748b' } } } }
+  });
+
+  // Net Cash Proceeds
   btoCharts.proceeds = new Chart(document.getElementById('chart-proceeds'), {
     type: 'bar',
     data: {
@@ -479,6 +738,7 @@ function renderBTOCharts(a, b) {
     options: chartDefaults
   });
 
+  // Property Value vs Mortgage
   const maxYears = Math.max(a.totalYears, b.totalYears);
   const years = Array.from({ length: maxYears + 1 }, (_, i) => i);
   const aValue = years.map(y => calcSellingPrice(a.price, a.growth, y));
@@ -500,28 +760,17 @@ function renderBTOCharts(a, b) {
     options: chartDefaults
   });
 
-  btoCharts.household = new Chart(document.getElementById('chart-household'), {
+  // Net Worth Comparison at Retirement
+  btoCharts.networth = new Chart(document.getElementById('chart-networth'), {
     type: 'bar',
     data: {
       labels: ['Path A', 'Path B'],
       datasets: [
-        { label: 'Husband CPF', data: [a.s1Final.totalCPF, b.s1Final.totalCPF], backgroundColor: '#3b82f6' },
-        { label: 'Wife CPF', data: [a.s2Final.totalCPF, b.s2Final.totalCPF], backgroundColor: '#10b981' },
-        { label: 'Cash', data: [a.combinedCashAtMOP, b.combinedCashAtMOP], backgroundColor: '#f59e0b' },
+        { label: 'CPF', data: [a.combinedCPFAtRetire, b.combinedCPFAtRetire], backgroundColor: '#3b82f6' },
+        { label: 'Cash', data: [a.combinedCashAtRetire, b.combinedCashAtRetire], backgroundColor: '#f59e0b' },
+        { label: 'Property', data: [a.totalPropertyValue, b.totalPropertyValue], backgroundColor: '#10b981' },
       ]
     },
     options: { ...chartDefaults, scales: { ...chartDefaults.scales, x: { stacked: true }, y: { ...chartDefaults.scales.y, stacked: true } } }
-  });
-
-  btoCharts.snapshots = new Chart(document.getElementById('chart-snapshots'), {
-    type: 'bar',
-    data: {
-      labels: ['Cash Deployed', 'Mortgage Left', 'CPF Owed', 'Net Proceeds'],
-      datasets: [
-        { label: 'Path A', data: [a.totalCashDeployed, a.mortgageBalanceAtMOP, a.accruedCPF, a.netCashProceeds], backgroundColor: '#3b82f6' },
-        { label: 'Path B', data: [b.totalCashDeployed, b.mortgageBalanceAtMOP, b.accruedCPF, b.netCashProceeds], backgroundColor: '#10b981' },
-      ]
-    },
-    options: chartDefaults
   });
 }

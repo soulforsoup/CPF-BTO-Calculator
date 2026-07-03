@@ -14,6 +14,7 @@ const CPF_CONFIG = {
   frs: 220400,
   brs: 110200,
   ers: 330600,
+  frsGrowthRate: 0.035,
 
   hdbLtv: 0.75,
   hdbLoanRate: 0.026,
@@ -140,18 +141,23 @@ function projectCPF(params) {
   const {
     currentAge, grossMonthlySalary, annualIncrement,
     currentOA, currentSA, currentMA,
-    targetAge, monthlyCashSavings, annualBonus
+    targetAge, monthlyCashSavings, annualBonus,
+    monthlyMortgage, mortgageTenure, mortgageStartAge,
+    startingCash,
   } = params;
 
   let oa = currentOA || 0;
   let sa = currentSA || 0;
   let ma = currentMA || 0;
   let ra = 0;
-  let cash = 0;
+  let cash = startingCash || 0;
   const rows = [];
   let salary = grossMonthlySalary || 0;
   const awRoom = Math.max(0, CPF_CONFIG.awAnnualCeiling - (CPF_CONFIG.owCeiling * 12));
   const bonusForCPF = Math.min(annualBonus || 0, awRoom);
+  const mortgageStartYr = (mortgageStartAge !== undefined ? mortgageStartAge : 999) - currentAge;
+  const mortgageEndYr = mortgageStartYr + (mortgageTenure || 0);
+  const yearsFromNow = 0 - currentAge;
 
   for (let year = 0; year <= targetAge - currentAge; year++) {
     const age = currentAge + year;
@@ -167,6 +173,19 @@ function projectCPF(params) {
       yearMA += mc.ma;
       yearContrib += mc.total;
       totalContrib += mc.total;
+
+      cash += (monthlyCashSavings || 0);
+
+      if (monthlyMortgage && mortgageTenure && mortgageStartAge !== undefined) {
+        if (age >= mortgageStartAge && age < mortgageStartAge + mortgageTenure) {
+          const deduction = Math.min(monthlyMortgage, oa);
+          oa -= deduction;
+          const shortfall = monthlyMortgage - deduction;
+          if (shortfall > 0) {
+            cash -= shortfall;
+          }
+        }
+      }
     }
 
     if (bonusForCPF > 0) {
@@ -205,11 +224,14 @@ function projectCPF(params) {
     ma += yearMA;
 
     if (age === 55) {
-      let toRA = Math.min(sa, CPF_CONFIG.frs);
+      const yearsFromProjectionStart = 55 - currentAge;
+      const frsAt55 = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsFromProjectionStart));
+
+      let toRA = Math.min(sa, frsAt55);
       ra += toRA;
       sa -= toRA;
-      if (ra < CPF_CONFIG.frs) {
-        const needed = CPF_CONFIG.frs - ra;
+      if (ra < frsAt55) {
+        const needed = frsAt55 - ra;
         const fromOA = Math.min(oa, needed);
         ra += fromOA;
         oa -= fromOA;
@@ -217,8 +239,11 @@ function projectCPF(params) {
       oa += sa;
       sa = 0;
     } else if (age > 55) {
-      if (ra < CPF_CONFIG.frs) {
-        const toRA = Math.min(yearRA, CPF_CONFIG.frs - ra);
+      const yearsFromProjectionStart = 55 - currentAge;
+      const frsAt55 = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsFromProjectionStart));
+
+      if (ra < frsAt55) {
+        const toRA = Math.min(yearRA, frsAt55 - ra);
         ra += toRA;
         oa += yearRA - toRA;
       } else {
@@ -239,8 +264,6 @@ function projectCPF(params) {
     if (age < 55) sa += interest.saInt;
     else ra += interest.raInt + interest.raExtra;
     ma += interest.maInt;
-
-    cash += (monthlyCashSavings || 0) * 12;
 
     rows.push({
       year,
@@ -294,6 +317,7 @@ function calcMortgageBalance(principal, annualRate, tenureYears, yearsElapsed) {
   const monthlyRate = annualRate / 12;
   const months = tenureYears * 12;
   const elapsedMonths = yearsElapsed * 12;
+  if (elapsedMonths >= months) return 0;
   if (monthlyRate === 0) return Math.round(principal - (principal / months) * elapsedMonths);
   return Math.round(
     principal * (Math.pow(1 + monthlyRate, months) - Math.pow(1 + monthlyRate, elapsedMonths)) /
