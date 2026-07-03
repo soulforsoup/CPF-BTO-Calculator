@@ -143,7 +143,7 @@ function calcAnnualInterest(oa, sa, ra, ma, age) {
 function projectCPF(params) {
   const {
     currentAge, grossMonthlySalary, annualIncrement,
-    currentOA, currentSA, currentMA,
+    currentOA, currentSA, currentMA, currentRA,
     targetAge, monthlyCashSavings, annualBonus,
     monthlyMortgage, mortgageTenure, mortgageStartAge,
     startingCash,
@@ -152,7 +152,7 @@ function projectCPF(params) {
   let oa = currentOA || 0;
   let sa = currentSA || 0;
   let ma = currentMA || 0;
-  let ra = 0;
+  let ra = currentRA || 0;
   let cash = startingCash || 0;
   const rows = [];
   let salary = grossMonthlySalary || 0;

@@ -292,6 +292,10 @@ function calcPath(p, shared) {
   let s1Retire = null, s2Retire = null;
   let resaleData = null;
 
+  // Hoist mortgage variables so both projections and LBS can use them
+  let retireMortgageStartAge = shared.s1Age + totalYears;
+  let s1RetireMortgage = 0, s2RetireMortgage = 0, retireMortgageTenure = 0;
+
   if (scenario === 'resale') {
     const resalePrice = +document.getElementById(p + '-resale-price').value;
     const resaleLeaseAtPurchase = +document.getElementById(p + '-resale-lease').value || 75;
@@ -329,6 +333,12 @@ function calcPath(p, shared) {
     const r1Share = totalIncome > 0 ? s1Final.salary / totalIncome : 0.5;
     const r2Share = 1 - r1Share;
 
+    // Set hoisted mortgage variables
+    retireMortgageTenure = resaleTenure;
+    retireMortgageStartAge = shared.s1Age + totalYears;
+    s1RetireMortgage = resaleMortgage * r1Share;
+    s2RetireMortgage = resaleMortgage * r2Share;
+
     s1Retire = projectCPF({
       currentAge: shared.s1Age + totalYears,
       grossMonthlySalary: s1Final.salary,
@@ -337,9 +347,9 @@ function calcPath(p, shared) {
       targetAge: retirementAge,
       monthlyCashSavings: shared.monthlyCashSavings / 2,
       annualBonus: 0,
-      monthlyMortgage: resaleMortgage * r1Share,
-      mortgageTenure: resaleTenure,
-      mortgageStartAge: shared.s1Age + totalYears,
+      monthlyMortgage: s1RetireMortgage,
+      mortgageTenure: retireMortgageTenure,
+      mortgageStartAge: retireMortgageStartAge,
       startingCash: cashAfterResale / 2,
     });
 
@@ -351,8 +361,8 @@ function calcPath(p, shared) {
       targetAge: retirementAge,
       monthlyCashSavings: shared.monthlyCashSavings / 2,
       annualBonus: 0,
-      monthlyMortgage: resaleMortgage * r2Share,
-      mortgageTenure: resaleTenure,
+      monthlyMortgage: s2RetireMortgage,
+      mortgageTenure: retireMortgageTenure,
       mortgageStartAge: shared.s2Age + totalYears,
       startingCash: cashAfterResale / 2,
     });
@@ -367,8 +377,13 @@ function calcPath(p, shared) {
     };
   } else {
     const mortgageEndAge = shared.s1Age + buildTime + tenure;
-    const monthsRemainingAfterSale = Math.max(0, (mortgageEndAge - (shared.s1Age + totalYears)) * 12);
     const yearsRemainingAfterSale = Math.max(0, mortgageEndAge - (shared.s1Age + totalYears));
+
+    // Set hoisted mortgage variables
+    retireMortgageTenure = yearsRemainingAfterSale;
+    retireMortgageStartAge = shared.s1Age + totalYears;
+    s1RetireMortgage = yearsRemainingAfterSale > 0 ? monthlyMortgage * s1MortgageShare : 0;
+    s2RetireMortgage = yearsRemainingAfterSale > 0 ? monthlyMortgage * s2MortgageShare : 0;
 
     s1Retire = projectCPF({
       currentAge: shared.s1Age + totalYears,
@@ -378,9 +393,9 @@ function calcPath(p, shared) {
       targetAge: retirementAge,
       monthlyCashSavings: shared.monthlyCashSavings / 2,
       annualBonus: 0,
-      monthlyMortgage: yearsRemainingAfterSale > 0 ? monthlyMortgage * s1MortgageShare : 0,
-      mortgageTenure: yearsRemainingAfterSale,
-      mortgageStartAge: shared.s1Age + totalYears,
+      monthlyMortgage: s1RetireMortgage,
+      mortgageTenure: retireMortgageTenure,
+      mortgageStartAge: retireMortgageStartAge,
     });
 
     s2Retire = projectCPF({
@@ -391,8 +406,8 @@ function calcPath(p, shared) {
       targetAge: retirementAge,
       monthlyCashSavings: shared.monthlyCashSavings / 2,
       annualBonus: 0,
-      monthlyMortgage: yearsRemainingAfterSale > 0 ? monthlyMortgage * s2MortgageShare : 0,
-      mortgageTenure: yearsRemainingAfterSale,
+      monthlyMortgage: s2RetireMortgage,
+      mortgageTenure: retireMortgageTenure,
       mortgageStartAge: shared.s2Age + totalYears,
     });
   }
@@ -444,7 +459,7 @@ function calcPath(p, shared) {
         const lbsBonus = calcLBSBonus(flatType, totalTopUp);
         const splitBonus = lbsBonus / 2;
 
-        // Re-project from age 65 to retirement with LBS-adjusted balances
+        // Re-project from age 65 with existing RA and ongoing mortgage
         const s1RetireAfterLBS = projectCPF({
           currentAge: lbsAge,
           grossMonthlySalary: s1AtLBS.salary,
@@ -452,10 +467,14 @@ function calcPath(p, shared) {
           currentOA: s1AtLBS.oa,
           currentSA: 0,
           currentMA: s1AtLBS.ma,
+          currentRA: s1AtLBS.ra + s1RaTopup,
           targetAge: retirementAge,
           monthlyCashSavings: shared.monthlyCashSavings / 2,
           annualBonus: 0,
           startingCash: s1AtLBS.cash + s1CashExcess + splitBonus,
+          monthlyMortgage: s1RetireMortgage,
+          mortgageTenure: retireMortgageTenure,
+          mortgageStartAge: retireMortgageStartAge,
         });
 
         const s2RetireAfterLBS = projectCPF({
@@ -465,23 +484,15 @@ function calcPath(p, shared) {
           currentOA: s2AtLBS.oa,
           currentSA: 0,
           currentMA: s2AtLBS.ma,
+          currentRA: s2AtLBS.ra + s2RaTopup,
           targetAge: retirementAge,
           monthlyCashSavings: shared.monthlyCashSavings / 2,
           annualBonus: 0,
           startingCash: s2AtLBS.cash + s2CashExcess + splitBonus,
+          monthlyMortgage: s2RetireMortgage,
+          mortgageTenure: retireMortgageTenure,
+          mortgageStartAge: retireMortgageStartAge,
         });
-
-        // Inject LBS RA top-up into the new projection
-        for (const row of s1RetireAfterLBS) {
-          row.ra += s1RaTopup;
-          row.totalCPF += s1RaTopup;
-          row.netWorth += s1RaTopup;
-        }
-        for (const row of s2RetireAfterLBS) {
-          row.ra += s2RaTopup;
-          row.totalCPF += s2RaTopup;
-          row.netWorth += s2RaTopup;
-        }
 
         // Replace the original retirement projections
         s1Retire = s1RetireAfterLBS;
