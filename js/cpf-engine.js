@@ -156,14 +156,14 @@ function projectCPF(params) {
   let cash = startingCash || 0;
   const rows = [];
   let salary = grossMonthlySalary || 0;
-  const awRoom = Math.max(0, CPF_CONFIG.awAnnualCeiling - (CPF_CONFIG.owCeiling * 12));
-  const bonusForCPF = Math.min(annualBonus || 0, awRoom);
   const mortgageStartYr = (mortgageStartAge !== undefined ? mortgageStartAge : 999) - currentAge;
   const mortgageEndYr = mortgageStartYr + (mortgageTenure || 0);
-  const yearsFromNow = 0 - currentAge;
 
   for (let year = 0; year <= targetAge - currentAge; year++) {
     const age = currentAge + year;
+    const cappedSalaryForAW = Math.min(salary, CPF_CONFIG.owCeiling);
+    const awRoom = Math.max(0, CPF_CONFIG.awAnnualCeiling - (cappedSalaryForAW * 12));
+    const bonusForCPF = Math.min(annualBonus || 0, awRoom);
     let yearOA = 0, yearSA = 0, yearRA = 0, yearMA = 0;
     let yearContrib = 0;
     let totalContrib = 0;
@@ -238,7 +238,12 @@ function projectCPF(params) {
       const yearsFromProjectionStart = 55 - currentAge;
       const frsAt55 = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsFromProjectionStart));
 
-      let toRA = Math.min(sa, frsAt55);
+      // Add this year's RA contributions first (capped at FRS)
+      const raContrib = Math.min(yearRA, Math.max(0, frsAt55 - ra));
+      ra += raContrib;
+      oa += (yearRA - raContrib); // overflow to OA
+
+      let toRA = Math.min(sa, Math.max(0, frsAt55 - ra));
       ra += toRA;
       sa -= toRA;
       if (ra < frsAt55) {
@@ -383,7 +388,11 @@ function calcSubsidyClawback(resalePrice, clawbackPct) {
 
 function calcCPFLife(raBalance) {
   if (raBalance <= 0) return 0;
-  return Math.round((raBalance / 120) * 0.85);
+  const annualRate = 0.04;
+  const monthlyRate = annualRate / 12;
+  const months = 20 * 12; // 20 years from age 65 to 85
+  const payout = raBalance * monthlyRate / (1 - Math.pow(1 + monthlyRate, -months));
+  return Math.round(payout * 0.90); // 0.90 factor for mortality cross-subsidization
 }
 
 function formatCurrency(num) {

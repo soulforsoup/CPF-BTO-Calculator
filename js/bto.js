@@ -114,15 +114,23 @@ function calcPath(p, shared) {
   let projectedS1OA = shared.s1OA;
   let projectedS2OA = shared.s2OA;
   if (timeline === 'bto' && buildTime > 0) {
+    // Deduct Stage-1 CPF from OA before projecting forward
+    const stage1CpfEstimate = Math.min(shared.s1OA + shared.s2OA, price * 0.05 + bsd);
+    const totalOA = shared.s1OA + shared.s2OA;
+    const s1Share = totalOA > 0 ? shared.s1OA / totalOA : 0.5;
+    const s2Share = 1 - s1Share;
+    const s1OAAfterStage1 = Math.max(0, shared.s1OA - stage1CpfEstimate * s1Share);
+    const s2OAAfterStage1 = Math.max(0, shared.s2OA - stage1CpfEstimate * s2Share);
+
     const s1Proj = projectCPF({
       currentAge: shared.s1Age, grossMonthlySalary: shared.s1Income,
-      annualIncrement: shared.s1Increment, currentOA: shared.s1OA,
+      annualIncrement: shared.s1Increment, currentOA: s1OAAfterStage1,
       currentSA: shared.s1SA, currentMA: shared.s1MA,
       targetAge: shared.s1Age + buildTime, monthlyCashSavings: 0, annualBonus: 0,
     });
     const s2Proj = projectCPF({
       currentAge: shared.s2Age, grossMonthlySalary: shared.s2Income,
-      annualIncrement: shared.s2Increment, currentOA: shared.s2OA,
+      annualIncrement: shared.s2Increment, currentOA: s2OAAfterStage1,
       currentSA: shared.s2SA, currentMA: shared.s2MA,
       targetAge: shared.s2Age + buildTime, monthlyCashSavings: 0, annualBonus: 0,
     });
@@ -203,20 +211,27 @@ function calcPath(p, shared) {
   const effectiveLoan = timeline === 'bto' && excessGrant > 0 ? Math.max(0, loanAmount - excessGrant) : loanAmount;
   const monthlyMortgage = calcMortgage(effectiveLoan, loanRate, tenure);
   const mortgageBalanceAtMOP = calcMortgageBalance(effectiveLoan, loanRate, tenure, mop);
-  const s1MonthlyOA = Math.round(shared.s1Income * getAllocationOA(shared.s1Age));
-  const s2MonthlyOA = Math.round(shared.s2Income * getAllocationOA(shared.s2Age));
+  const s1Capped = Math.min(shared.s1Income, CPF_CONFIG.owCeiling);
+  const s2Capped = Math.min(shared.s2Income, CPF_CONFIG.owCeiling);
+  const s1ContribRate = getContributionRate(shared.s1Age).total;
+  const s2ContribRate = getContributionRate(shared.s2Age).total;
+  const s1MonthlyOA = Math.round(s1Capped * s1ContribRate * getAllocationOA(shared.s1Age));
+  const s2MonthlyOA = Math.round(s2Capped * s2ContribRate * getAllocationOA(shared.s2Age));
   const combinedOA = s1MonthlyOA + s2MonthlyOA;
 
   let totalCashDeployed = totalCash + reno + (monthlyCosts + hps) * mop * 12;
   let totalCPFUsed = totalCpf + bsd;
   let runningCpfWithdrawn = totalCpf + bsd;
   const monthlyOARate = CPF_CONFIG.oaRate / 12;
-  for (let m = 0; m < mop * 12; m++) {
-    runningCpfWithdrawn += monthlyMortgage;
+  for (let m = 0; m < totalYears * 12; m++) {
+    if (m >= buildTime * 12) {
+      runningCpfWithdrawn += monthlyMortgage;
+    }
     runningCpfWithdrawn *= (1 + monthlyOARate);
   }
   const cpfRefunded = Math.round(runningCpfWithdrawn);
-  const accruedCPF = cpfRefunded - (totalCpf + bsd + monthlyMortgage * mop * 12);
+  const totalMortgagePaid = monthlyMortgage * mop * 12;
+  const accruedCPF = cpfRefunded - (totalCpf + bsd + totalMortgagePaid);
 
   const s1Proj = projectCPF({
     currentAge: shared.s1Age, grossMonthlySalary: shared.s1Income,
@@ -251,7 +266,12 @@ function calcPath(p, shared) {
   const combinedCashAtMOP = careerCashSaved + netCashProceeds;
 
   const maxBuyerIncome = shared.buyerCeiling;
-  const maxBuyerLoan = Math.round(maxBuyerIncome * CPF_CONFIG.hdbLtv * 0.3 * tenure * 12);
+  const maxMonthlyPayment = maxBuyerIncome * 0.30; // 30% MSR/TDSR cap
+  const buyerMonthlyRate = loanRate / 12;
+  const buyerMonths = tenure * 12;
+  const maxBuyerLoan = buyerMonthlyRate > 0
+    ? Math.round(maxMonthlyPayment * (1 - Math.pow(1 + buyerMonthlyRate, -buyerMonths)) / buyerMonthlyRate)
+    : Math.round(maxMonthlyPayment * buyerMonths);
   const cashCPFGap = sellingPrice - maxBuyerLoan;
 
   let mortgageSplit = shared.mortgageSplit;
@@ -380,37 +400,64 @@ function calcPath(p, shared) {
     const propertyValueAtLBS = calcSellingPrice(price, growth, lbsAge - shared.s1Age);
     const lbsProceeds = calcLBSProceeds(propertyValueAtLBS, flatType);
 
+    const frsAtLBS = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, lbsAge - shared.s1Age));
+    const s1LBSShare = lbsProceeds / 2;
+    const s2LBSShare = lbsProceeds / 2;
+
     const s1AtLBS = s1Retire.find(r => r.age === lbsAge);
     const s2AtLBS = s2Retire.find(r => r.age === lbsAge);
 
-    if (s1AtLBS && s2AtLBS) {
-      const frsAtLBS = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, lbsAge - shared.s1Age));
-
-      const s1LBSShare = lbsProceeds / 2;
-      const s2LBSShare = lbsProceeds / 2;
-
+    if (s1AtLBS && s2AtLBS && lbsAge < retirementAge) {
       const s1RaTopup = Math.min(s1LBSShare, Math.max(0, frsAtLBS - s1AtLBS.ra));
       const s2RaTopup = Math.min(s2LBSShare, Math.max(0, frsAtLBS - s2AtLBS.ra));
       const totalTopUp = s1RaTopup + s2RaTopup;
-
       const s1CashExcess = s1LBSShare - s1RaTopup;
       const s2CashExcess = s2LBSShare - s2RaTopup;
-
       const lbsBonus = calcLBSBonus(flatType, totalTopUp);
       const splitBonus = lbsBonus / 2;
 
-      for (let i = s1Retire.indexOf(s1AtLBS); i < s1Retire.length; i++) {
-        s1Retire[i].ra += s1RaTopup;
-        s1Retire[i].cash += (s1CashExcess + splitBonus);
-        s1Retire[i].totalCPF += s1RaTopup;
-        s1Retire[i].netWorth += (s1RaTopup + s1CashExcess + splitBonus);
+      // Re-project from age 65 to retirement with LBS-adjusted balances
+      const s1RetireAfterLBS = projectCPF({
+        currentAge: lbsAge,
+        grossMonthlySalary: s1AtLBS.salary,
+        annualIncrement: shared.s1Increment,
+        currentOA: s1AtLBS.oa,
+        currentSA: 0,
+        currentMA: s1AtLBS.ma,
+        targetAge: retirementAge,
+        monthlyCashSavings: shared.monthlyCashSavings / 2,
+        annualBonus: 0,
+        startingCash: s1AtLBS.cash + s1CashExcess + splitBonus,
+      });
+
+      const s2RetireAfterLBS = projectCPF({
+        currentAge: lbsAge,
+        grossMonthlySalary: s2AtLBS.salary,
+        annualIncrement: shared.s2Increment,
+        currentOA: s2AtLBS.oa,
+        currentSA: 0,
+        currentMA: s2AtLBS.ma,
+        targetAge: retirementAge,
+        monthlyCashSavings: shared.monthlyCashSavings / 2,
+        annualBonus: 0,
+        startingCash: s2AtLBS.cash + s2CashExcess + splitBonus,
+      });
+
+      // Inject LBS RA top-up into the new projection
+      for (const row of s1RetireAfterLBS) {
+        row.ra += s1RaTopup;
+        row.totalCPF += s1RaTopup;
+        row.netWorth += s1RaTopup;
       }
-      for (let i = s2Retire.indexOf(s2AtLBS); i < s2Retire.length; i++) {
-        s2Retire[i].ra += s2RaTopup;
-        s2Retire[i].cash += (s2CashExcess + splitBonus);
-        s2Retire[i].totalCPF += s2RaTopup;
-        s2Retire[i].netWorth += (s2RaTopup + s2CashExcess + splitBonus);
+      for (const row of s2RetireAfterLBS) {
+        row.ra += s2RaTopup;
+        row.totalCPF += s2RaTopup;
+        row.netWorth += s2RaTopup;
       }
+
+      // Replace the original retirement projections
+      s1Retire = s1RetireAfterLBS;
+      s2Retire = s2RetireAfterLBS;
 
       lbsData = {
         propertyValueAtLBS, lbsProceeds,
@@ -455,6 +502,7 @@ function calcPath(p, shared) {
     totalPropertyValue, totalNetWorthAtRetire,
     cpfLife1, cpfLife2, cpfLifeTotal: cpfLife1 + cpfLife2,
     resaleData, lbsData,
+    currentS1OA: shared.s1OA, currentS2OA: shared.s2OA,
   };
 }
 
@@ -490,7 +538,7 @@ function renderDepositBreakdown(r, path) {
   if (r.timeline === 'bto') {
     s2HTML += `<div class="deposit-row"><span class="label">Projected CPF OA</span><span class="value cpf">${formatCurrency(r.projectedCombinedOA)}</span></div>`;
   } else {
-    s2HTML += `<div class="deposit-row"><span class="label">CPF OA Remaining</span><span class="value cpf">${formatCurrency(Math.max(0, (r.s1OA || 0) + (r.s2OA || 0) - r.s1Cpf))}</span></div>`;
+    s2HTML += `<div class="deposit-row"><span class="label">CPF OA Remaining</span><span class="value cpf">${formatCurrency(Math.max(0, (r.currentS1OA || 0) + (r.currentS2OA || 0) - r.s1Cpf))}</span></div>`;
   }
   s2HTML += `<div class="deposit-row"><span class="label">CPF Used</span><span class="value cpf">${formatCurrency(r.s2Cpf)}</span></div>`;
   s2HTML += `<div class="deposit-row"><span class="label">Cash Needed</span><span class="value cash">${formatCurrency(r.s2Cash)}</span></div>`;
