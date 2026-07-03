@@ -360,6 +360,23 @@ function calcResaleLevy(flatType) {
   return CPF_CONFIG.resaleLevy[flatType] || 0;
 }
 
+function calcLBSProceeds(propertyValue, flatType) {
+  const lbsRates = {
+    '2room': 0.35, '3room': 0.30, '4room': 0.25,
+    '5room': 0.20, 'exec': 0.15,
+  };
+  return Math.round(propertyValue * (lbsRates[flatType] || 0.25));
+}
+
+function calcLBSBonus(flatType, totalTopUp) {
+  if (totalTopUp >= 60000) {
+    if (flatType === '2room' || flatType === '3room') return 30000;
+    if (flatType === '4room') return 15000;
+    return 7500;
+  }
+  return 0;
+}
+
 function calcSubsidyClawback(resalePrice, clawbackPct) {
   return Math.round(resalePrice * (clawbackPct / 100));
 }

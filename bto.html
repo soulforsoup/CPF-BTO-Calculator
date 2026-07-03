@@ -200,13 +200,20 @@
 
         <!-- Scenario Toggle -->
         <div class="form-grid" style="margin-top:0.75rem;">
-          <div class="form-group">
-            <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
-            <select id="a-scenario" onchange="onScenarioChange('a')">
-              <option value="forever">Forever Stay</option>
-              <option value="resale">Sell & Buy Resale</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
+          <select id="a-scenario" onchange="onScenarioChange('a')">
+            <option value="forever">Forever Stay</option>
+            <option value="resale">Sell & Buy Resale</option>
+          </select>
+        </div>
+        <div class="form-group" id="a-lbs-section" style="display:none;">
+          <label>Lease Buyback Scheme (LBS) <span class="tip" data-tip="At age 65, sell part of your lease back to HDB. Proceeds top up CPF RA for higher CPF LIFE payouts. You continue living in the flat. LBS proceeds are an estimate based on flat type averages. Actual HDB payouts depend on the flat's market value, remaining lease, and the exact age of the youngest owner.">?</span></label>
+          <select id="a-lbs">
+            <option value="none">No LBS</option>
+            <option value="at65">LBS at Age 65</option>
+          </select>
+        </div>
         </div>
 
         <!-- War Chest (shown when resale selected) -->
@@ -367,13 +374,20 @@
 
         <!-- Scenario Toggle -->
         <div class="form-grid" style="margin-top:0.75rem;">
-          <div class="form-group">
-            <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
-            <select id="b-scenario" onchange="onScenarioChange('b')">
-              <option value="forever">Forever Stay</option>
-              <option value="resale">Sell & Buy Resale</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label>Scenario <span class="tip" data-tip="Forever Stay: keep the flat, project CPF to retirement. Sell & Buy Resale: sell at MOP, buy another flat, project to retirement.">?</span></label>
+          <select id="b-scenario" onchange="onScenarioChange('b')">
+            <option value="forever">Forever Stay</option>
+            <option value="resale">Sell & Buy Resale</option>
+          </select>
+        </div>
+        <div class="form-group" id="b-lbs-section" style="display:none;">
+          <label>Lease Buyback Scheme (LBS) <span class="tip" data-tip="At age 65, sell part of your lease back to HDB. Proceeds top up CPF RA for higher CPF LIFE payouts. You continue living in the flat. LBS proceeds are an estimate based on flat type averages. Actual HDB payouts depend on the flat's market value, remaining lease, and the exact age of the youngest owner.">?</span></label>
+          <select id="b-lbs">
+            <option value="none">No LBS</option>
+            <option value="at65">LBS at Age 65</option>
+          </select>
+        </div>
         </div>
 
         <!-- War Chest -->

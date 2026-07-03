@@ -15,6 +15,7 @@ const BTO_PATH_IDS = [
   'grants','reno','monthly-costs','hps','flat-type',
   'scenario',
   'resale-price','resale-growth','resale-loan-rate','resale-tenure','resale-grants',
+  'lbs',
 ];
 
 function toggleLevy(path) {
@@ -56,6 +57,7 @@ function onScenarioChange(path) {
   const scenario = document.getElementById(path + '-scenario').value;
   document.getElementById(path + '-warchest').style.display = scenario === 'resale' ? 'block' : 'none';
   document.getElementById(path + '-resale-inputs').style.display = scenario === 'resale' ? 'grid' : 'none';
+  document.getElementById(path + '-lbs-section').style.display = scenario === 'forever' ? 'block' : 'none';
 }
 
 function autoCalcDeposit(path) {
@@ -370,6 +372,54 @@ function calcPath(p, shared) {
     });
   }
 
+  let lbsData = null;
+  const lbsOption = document.getElementById(p + '-lbs') ? document.getElementById(p + '-lbs').value : 'none';
+
+  if (scenario === 'forever' && lbsOption === 'at65') {
+    const lbsAge = 65;
+    const propertyValueAtLBS = calcSellingPrice(price, growth, lbsAge - shared.s1Age);
+    const lbsProceeds = calcLBSProceeds(propertyValueAtLBS, flatType);
+
+    const s1AtLBS = s1Retire.find(r => r.age === lbsAge);
+    const s2AtLBS = s2Retire.find(r => r.age === lbsAge);
+
+    if (s1AtLBS && s2AtLBS) {
+      const frsAtLBS = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, lbsAge - shared.s1Age));
+
+      const s1LBSShare = lbsProceeds / 2;
+      const s2LBSShare = lbsProceeds / 2;
+
+      const s1RaTopup = Math.min(s1LBSShare, Math.max(0, frsAtLBS - s1AtLBS.ra));
+      const s2RaTopup = Math.min(s2LBSShare, Math.max(0, frsAtLBS - s2AtLBS.ra));
+      const totalTopUp = s1RaTopup + s2RaTopup;
+
+      const s1CashExcess = s1LBSShare - s1RaTopup;
+      const s2CashExcess = s2LBSShare - s2RaTopup;
+
+      const lbsBonus = calcLBSBonus(flatType, totalTopUp);
+      const splitBonus = lbsBonus / 2;
+
+      for (let i = s1Retire.indexOf(s1AtLBS); i < s1Retire.length; i++) {
+        s1Retire[i].ra += s1RaTopup;
+        s1Retire[i].cash += (s1CashExcess + splitBonus);
+        s1Retire[i].totalCPF += s1RaTopup;
+        s1Retire[i].netWorth += (s1RaTopup + s1CashExcess + splitBonus);
+      }
+      for (let i = s2Retire.indexOf(s2AtLBS); i < s2Retire.length; i++) {
+        s2Retire[i].ra += s2RaTopup;
+        s2Retire[i].cash += (s2CashExcess + splitBonus);
+        s2Retire[i].totalCPF += s2RaTopup;
+        s2Retire[i].netWorth += (s2RaTopup + s2CashExcess + splitBonus);
+      }
+
+      lbsData = {
+        propertyValueAtLBS, lbsProceeds,
+        s1RaTopup, s2RaTopup,
+        s1CashExcess, s2CashExcess, lbsBonus,
+      };
+    }
+  }
+
   const s1AtRetire = s1Retire[s1Retire.length - 1];
   const s2AtRetire = s2Retire[s2Retire.length - 1];
 
@@ -404,7 +454,7 @@ function calcPath(p, shared) {
     combinedCPFAtRetire, combinedCashAtRetire,
     totalPropertyValue, totalNetWorthAtRetire,
     cpfLife1, cpfLife2, cpfLifeTotal: cpfLife1 + cpfLife2,
-    resaleData,
+    resaleData, lbsData,
   };
 }
 
@@ -489,6 +539,20 @@ function renderRetirementProjection(r, path) {
       <div class="retirement-row"><span class="label">Resale Loan</span><span class="value">${formatCurrency(rd.resaleLoan)}</span></div>
       <div class="retirement-row"><span class="label">Monthly Mortgage</span><span class="value">${formatCurrency(rd.resaleMortgage)}</span></div>
       <div class="retirement-row"><span class="label">Cash Remaining</span><span class="value${rd.cashAfterResale < 0 ? ' negative-cash' : ''}">${formatCurrency(rd.cashAfterResale)}</span></div>
+      <div style="border-top:1px solid var(--border);margin:0.5rem 0;"></div>
+    `;
+  }
+
+  if (r.scenario === 'forever' && r.lbsData) {
+    const ld = r.lbsData;
+    html += `
+      <div class="retirement-stage-title">Lease Buyback Scheme (Age 65)</div>
+      <div class="retirement-row"><span class="label">Property Value at 65</span><span class="value">${formatCurrency(ld.propertyValueAtLBS)}</span></div>
+      <div class="retirement-row"><span class="label">LBS Gross Proceeds</span><span class="value">${formatCurrency(ld.lbsProceeds)}</span></div>
+      <div class="retirement-row"><span class="label">├─ RA Top-up (Husband)</span><span class="value cpf">${formatCurrency(ld.s1RaTopup)}</span></div>
+      <div class="retirement-row"><span class="label">├─ RA Top-up (Wife)</span><span class="value cpf">${formatCurrency(ld.s2RaTopup)}</span></div>
+      <div class="retirement-row"><span class="label">└─ Cash Excess</span><span class="value cash">${formatCurrency(ld.s1CashExcess + ld.s2CashExcess)}</span></div>
+      <div class="retirement-row total"><span class="label">HDB Cash Bonus</span><span class="value cash">${formatCurrency(ld.lbsBonus)}</span></div>
       <div style="border-top:1px solid var(--border);margin:0.5rem 0;"></div>
     `;
   }
@@ -622,7 +686,12 @@ function calculateBTO() {
 
 function renderBTOResults(r, path) {
   const el = document.getElementById(path + '-results');
-  el.innerHTML = `
+  const snapshotLabel = r.scenario === 'forever'
+    ? 'FINANCIAL POSITION AT MOP (YEAR ' + r.totalYears + ')'
+    : 'SNAPSHOT 1: BEFORE THE SALE (YEAR ' + r.totalYears + ')';
+  const spouseLabel = r.scenario === 'forever' ? 'AT MOP' : 'AT SALE';
+
+  let html = `
     <div class="section-title">AUTOMATED FINANCING & FEES</div>
     <div class="form-grid" style="margin-bottom:1rem;">
       <div class="form-group"><label>Buyer Stamp Duty</label><input type="text" value="${formatCurrency(r.bsd)}" readonly></div>
@@ -632,40 +701,47 @@ function renderBTOResults(r, path) {
       ${r.cov > 0 ? `<div class="form-group"><label>COV (Cash Only)</label><input type="text" value="${formatCurrency(r.cov)}" readonly></div>` : ''}
     </div>
 
-    <div class="section-title">SNAPSHOT 1: BEFORE THE SALE (YEAR ${r.totalYears})</div>
+    <div class="section-title">${snapshotLabel}</div>
     <div class="form-grid" style="margin-bottom:1rem;">
       <div class="form-group"><label>Total Liquid Cash Deployed</label><input type="text" value="${formatCurrency(r.totalCashDeployed)}" readonly></div>
       <div class="form-group"><label>Remaining Mortgage Loan</label><input type="text" value="${formatCurrency(r.mortgageBalanceAtMOP)}" readonly></div>
       <div class="form-group"><label>Accrued CPF Owed</label><input type="text" value="${formatCurrency(r.accruedCPF)}" readonly></div>
       <div class="form-group"><label>Total Career Cash Saved</label><input type="text" value="${formatCurrency(r.careerCash)}" readonly></div>
     </div>
+  `;
 
-    <div class="section-title">SNAPSHOT 2: AFTER THE SALE (EXIT MATH)</div>
-    <div class="form-grid" style="margin-bottom:1rem;">
-      <div class="form-group"><label>Gross Selling Price</label><input type="text" value="${formatCurrency(r.sellingPrice)}" readonly></div>
-      <div class="form-group"><label>Agent Commission (2%)</label><input type="text" value="${formatCurrency(r.agentCommission)}" readonly></div>
-      ${r.clawbackType !== 'none' ? `<div class="form-group"><label>Subsidy Clawback</label><input type="text" value="${formatCurrency(r.subsidyClawback)}" readonly></div>` : ''}
-      ${r.resaleLevyAmt > 0 ? `<div class="form-group"><label>Resale Levy (Cash)</label><input type="text" value="${formatCurrency(r.resaleLevyAmt)}" readonly></div>` : ''}
-      <div class="form-group"><label>CPF Refunded to OA</label><input type="text" value="${formatCurrency(r.cpfRefunded)}" readonly></div>
-      <div class="form-group"><label>Net Cash Proceeds</label><input type="text" value="${formatCurrency(r.netCashProceeds)}" readonly style="color:var(--success);font-weight:700;"></div>
-    </div>
+  if (r.scenario === 'resale') {
+    html += `
+      <div class="section-title">SNAPSHOT 2: AFTER THE SALE (EXIT MATH)</div>
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="form-group"><label>Gross Selling Price</label><input type="text" value="${formatCurrency(r.sellingPrice)}" readonly></div>
+        <div class="form-group"><label>Agent Commission (2%)</label><input type="text" value="${formatCurrency(r.agentCommission)}" readonly></div>
+        ${r.clawbackType !== 'none' ? `<div class="form-group"><label>Subsidy Clawback</label><input type="text" value="${formatCurrency(r.subsidyClawback)}" readonly></div>` : ''}
+        ${r.resaleLevyAmt > 0 ? `<div class="form-group"><label>Resale Levy (Cash)</label><input type="text" value="${formatCurrency(r.resaleLevyAmt)}" readonly></div>` : ''}
+        <div class="form-group"><label>CPF Refunded to OA</label><input type="text" value="${formatCurrency(r.cpfRefunded)}" readonly></div>
+        <div class="form-group"><label>Net Cash Proceeds</label><input type="text" value="${formatCurrency(r.netCashProceeds)}" readonly style="color:var(--success);font-weight:700;"></div>
+      </div>
+      <div class="section-title">BUYER AFFORDABILITY CHECK</div>
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="form-group"><label>Max Buyer Income</label><input type="text" value="${formatCurrency(r.maxBuyerIncome)}" readonly></div>
+        <div class="form-group"><label>Max Buyer Loan</label><input type="text" value="${formatCurrency(r.maxBuyerLoan)}" readonly></div>
+        <div class="form-group"><label>Cash/CPF Gap</label><input type="text" value="${formatCurrency(r.cashCPFGap)}" readonly></div>
+      </div>
+    `;
+  }
 
-    <div class="section-title">BUYER AFFORDABILITY CHECK</div>
-    <div class="form-grid" style="margin-bottom:1rem;">
-      <div class="form-group"><label>Max Buyer Income</label><input type="text" value="${formatCurrency(r.maxBuyerIncome)}" readonly></div>
-      <div class="form-group"><label>Max Buyer Loan</label><input type="text" value="${formatCurrency(r.maxBuyerLoan)}" readonly></div>
-      <div class="form-group"><label>Cash/CPF Gap</label><input type="text" value="${formatCurrency(r.cashCPFGap)}" readonly></div>
-    </div>
-
-    <div class="section-title">SPOUSE BREAKDOWN AT SALE</div>
+  html += `
+    <div class="section-title">SPOUSE BREAKDOWN ${spouseLabel}</div>
     <div class="form-grid">
-      <div class="form-group"><label>Husband CPF at Sale</label><input type="text" value="${formatCurrency(r.s1Final.totalCPF)}" readonly></div>
-      <div class="form-group"><label>Husband Cash at Sale</label><input type="text" value="${formatCurrency(Math.round(r.s1Final.cash + r.careerCashSaved / 2))}" readonly></div>
-      <div class="form-group"><label>Wife CPF at Sale</label><input type="text" value="${formatCurrency(r.s2Final.totalCPF)}" readonly></div>
-      <div class="form-group"><label>Wife Cash at Sale</label><input type="text" value="${formatCurrency(Math.round(r.s2Final.cash + r.careerCashSaved / 2))}" readonly></div>
+      <div class="form-group"><label>Husband CPF ${spouseLabel}</label><input type="text" value="${formatCurrency(r.s1Final.totalCPF)}" readonly></div>
+      <div class="form-group"><label>Husband Cash ${spouseLabel}</label><input type="text" value="${formatCurrency(Math.round(r.s1Final.cash + r.careerCashSaved / 2))}" readonly></div>
+      <div class="form-group"><label>Wife CPF ${spouseLabel}</label><input type="text" value="${formatCurrency(r.s2Final.totalCPF)}" readonly></div>
+      <div class="form-group"><label>Wife Cash ${spouseLabel}</label><input type="text" value="${formatCurrency(Math.round(r.s2Final.cash + r.careerCashSaved / 2))}" readonly></div>
       <div class="form-group"><label>Combined Household</label><input type="text" value="${formatCurrency(r.combinedCPFAtMOP + r.combinedCashAtMOP)}" readonly style="color:var(--accent);font-weight:700;"></div>
     </div>
   `;
+
+  el.innerHTML = html;
 }
 
 function renderBTOCharts(a, b) {
