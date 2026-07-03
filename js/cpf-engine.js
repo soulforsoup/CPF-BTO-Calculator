@@ -105,11 +105,16 @@ function calcMonthlyCPF(salary, age) {
   return { total, employer, employee, oa, sa, ra, ma };
 }
 
-function calcAnnualInterest(oa, sa, ra, ma, age) {
-  let oaInt = oa * CPF_CONFIG.oaRate;
-  let saInt = sa * CPF_CONFIG.saRate;
-  let maInt = ma * CPF_CONFIG.maRate;
-  let raInt = ra * CPF_CONFIG.raRate;
+function calcAnnualInterest(oa, sa, ra, ma, age, oaContrib, saContrib, raContrib, maContrib) {
+  const oaC = oaContrib || 0;
+  const saC = saContrib || 0;
+  const raC = raContrib || 0;
+  const maC = maContrib || 0;
+
+  let oaInt = (oa - oaC / 2) * CPF_CONFIG.oaRate;
+  let saInt = (sa - saC / 2) * CPF_CONFIG.saRate;
+  let maInt = (ma - maC / 2) * CPF_CONFIG.maRate;
+  let raInt = (ra - raC / 2) * CPF_CONFIG.raRate;
 
   let remainingCap = CPF_CONFIG.extraInterestCap;
   let saExtra = 0, raExtra = 0, maExtra = 0, raExtra55 = 0;
@@ -298,7 +303,11 @@ function projectCPF(params) {
       age < 55 ? sa : 0,
       age >= 55 ? ra : 0,
       ma,
-      age
+      age,
+      yearOA,
+      age < 55 ? yearSA : 0,
+      age >= 55 ? yearRA : 0,
+      yearMA
     );
     oa += interest.oaInt;
     if (age < 55) {

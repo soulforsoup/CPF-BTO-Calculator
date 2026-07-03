@@ -202,7 +202,7 @@ function calcPath(p, shared) {
 
   let loanWarning = null;
   if (loanType === 'bank') {
-    const minCash = price * 0.05;
+    const minCash = Math.min(price, valuation) * 0.05;
     if (totalCash < minCash) {
       const shortfall = minCash - totalCash;
       s2Cash += shortfall;
@@ -214,11 +214,11 @@ function calcPath(p, shared) {
   let loanAmount;
   if (loanType === 'hdb') {
     const availableCPF = Math.max(0, availableOA - 20000);
-    const cpfForDownpayment = availableCPF;
+    const cpfForDownpayment = Math.min(availableCPF, Math.max(0, price - grants));
     loanAmount = Math.round(Math.max(0, price - cpfForDownpayment - grants));
     s2Cpf = Math.max(0, cpfForDownpayment - s1Cpf);
   } else {
-    loanAmount = Math.round(price * CPF_CONFIG.hdbLtv);
+    loanAmount = Math.round(Math.min(price, valuation) * CPF_CONFIG.hdbLtv);
   }
   const effectiveLoan = loanAmount;
   const monthlyMortgage = calcMortgage(effectiveLoan, loanRate, tenure);
@@ -327,9 +327,11 @@ function calcPath(p, shared) {
   const combinedCashAtMOP = careerCashSaved + netCashProceeds;
 
   const maxBuyerIncome = shared.buyerCeiling;
-  const maxMonthlyPayment = maxBuyerIncome * 0.30; // 30% MSR/TDSR cap
-  const buyerMonthlyRate = loanRate / 12;
-  const buyerMonths = tenure * 12;
+  const maxMonthlyPayment = maxBuyerIncome * 0.30;
+  const floorRate = loanType === 'hdb' ? 0.03 : 0.04;
+  const stressTestRate = Math.max(loanRate, floorRate);
+  const buyerMonthlyRate = stressTestRate / 12;
+  const buyerMonths = 25 * 12;
   const maxBuyerLoan = buyerMonthlyRate > 0
     ? Math.round(maxMonthlyPayment * (1 - Math.pow(1 + buyerMonthlyRate, -buyerMonths)) / buyerMonthlyRate)
     : Math.round(maxMonthlyPayment * buyerMonths);
@@ -380,10 +382,16 @@ function calcPath(p, shared) {
     const cashForResale = Math.max(0, resaleNetDP - s1ForDP - s2ForDP);
     const cashAfterResale = netCashProceeds - cashForResale;
 
-    const s1OaAfter = s1AfterBSD - s1ForDP;
-    const s2OaAfter = s2AfterBSD - s2ForDP;
+    let s1OaAfter = s1AfterBSD - s1ForDP;
+    let s2OaAfter = s2AfterBSD - s2ForDP;
 
-    const resaleLoan = Math.round(resalePrice * 0.75);
+    const remainingOaForLoan = s1OaAfter + s2OaAfter;
+    const maxLegalLoan = Math.round(resalePrice * 0.75);
+    const loanNeeded = Math.max(0, maxLegalLoan - remainingOaForLoan);
+    const resaleLoan = Math.min(maxLegalLoan, loanNeeded);
+    const s1LoanReduction = Math.min(s1OaAfter, maxLegalLoan - resaleLoan);
+    s1OaAfter -= s1LoanReduction;
+    s2OaAfter -= Math.min(s2OaAfter, maxLegalLoan - resaleLoan - s1LoanReduction);
     const resaleMortgage = calcMortgage(resaleLoan, resaleLoanRate, resaleTenure);
 
     const totalIncome = s1Final.salary + s2Final.salary;
@@ -478,7 +486,7 @@ function calcPath(p, shared) {
 
   if (lbsOption === 'at65') {
     const lbsAge = 65;
-    const yearsToLBS = lbsAge - shared.s1Age;
+    const yearsToLBS = lbsAge - (shared.s1Age + totalYears);
 
     // Use correct lease and price based on scenario
     const lbsLease = scenario === 'resale'
@@ -582,6 +590,8 @@ function calcPath(p, shared) {
 
   const cpfLife1 = calcCPFLife(s1AtRetire.ra);
   const cpfLife2 = calcCPFLife(s2AtRetire.ra);
+
+  const accruedCPF = cpfRefunded;
 
   return {
     timeline, buildTime, price, valuation, mop, growth, totalYears,
