@@ -399,7 +399,7 @@ function calcPath(p, shared) {
     stage1Label, stage2Label, stage1Items, stage2Items,
     loanWarning, projectedCombinedOA,
     s1MortgageShare, s2MortgageShare,
-    s1AtRetire, s2AtRetire,
+    s1Retire, s2Retire, s1AtRetire, s2AtRetire,
     combinedCPFAtRetire, combinedCashAtRetire,
     totalPropertyValue, totalNetWorthAtRetire,
     cpfLife1, cpfLife2, cpfLifeTotal: cpfLife1 + cpfLife2,
