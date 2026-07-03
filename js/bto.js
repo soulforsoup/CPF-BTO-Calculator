@@ -154,8 +154,8 @@ function calcPath(p, shared) {
     s1Cpf = Math.min(currentCombinedOA, stage1Total);
     s1Cash = Math.max(0, stage1Total - s1Cpf);
 
-    const grantOffset = Math.min(grants, price * 0.15);
-    const stage2Total = Math.max(0, price * 0.15 - grantOffset);
+    const grantOffset = Math.min(grants, price * 0.20);
+    const stage2Total = Math.max(0, price * 0.20 - grantOffset);
     const remainingOA = Math.max(0, projectedCombinedOA - s1Cpf);
     s2Cpf = Math.min(remainingOA, stage2Total);
     s2Cash = Math.max(0, stage2Total - s2Cpf);
@@ -169,20 +169,20 @@ function calcPath(p, shared) {
       { label: 'Buyer\'s Stamp Duty (BSD)', value: bsd },
     ];
     stage2Items = [
-      { label: '15% of Price', value: price * 0.15 },
+      { label: '20% of Price', value: price * 0.20 },
     ];
     if (grantOffset > 0) stage2Items.push({ label: '− CPF Grants', value: -grantOffset, cls: 'cpf' });
-    if (excessGrant > 0) stage2Items.push({ label: 'Excess Grant → Loan', value: -excessGrant, cls: 'cpf' });
+    if (excessGrant > 0) stage2Items.push({ label: 'Excess Grant → CPF OA', value: -excessGrant, cls: 'cpf' });
   } else {
     const optionFees = 5000;
     s1Cpf = Math.min(currentCombinedOA, bsd);
     s1Cash = optionFees + Math.max(0, bsd - s1Cpf);
 
     const remainingDP = Math.max(0, price * 0.25 - optionFees);
-    const stage2Total = remainingDP + cov - grants;
+    const netDP = Math.max(0, remainingDP - grants);
     const remainingOA = Math.max(0, currentCombinedOA - s1Cpf);
-    s2Cpf = Math.min(remainingOA, Math.max(0, stage2Total));
-    s2Cash = Math.max(0, stage2Total - s2Cpf);
+    s2Cpf = Math.min(remainingOA, netDP);
+    s2Cash = Math.max(0, netDP - s2Cpf) + cov;
 
     stage1Label = 'OTP (Now)';
     stage2Label = 'Completion (8-12 weeks)';
@@ -212,7 +212,7 @@ function calcPath(p, shared) {
   }
 
   const loanAmount = Math.round(price * CPF_CONFIG.hdbLtv);
-  const effectiveLoan = timeline === 'bto' && excessGrant > 0 ? Math.max(0, loanAmount - excessGrant) : loanAmount;
+  const effectiveLoan = loanAmount;
   const monthlyMortgage = calcMortgage(effectiveLoan, loanRate, tenure);
   const mortgageBalanceAtMOP = calcMortgageBalance(effectiveLoan, loanRate, tenure, mop);
   const s1Capped = Math.min(shared.s1Income, CPF_CONFIG.owCeiling);
@@ -225,7 +225,7 @@ function calcPath(p, shared) {
 
   let totalCashDeployed = totalCash + reno + (monthlyCosts + hps) * mop * 12;
   let totalCPFUsed = totalCpf + bsd;
-  let runningCpfWithdrawn = totalCpf + bsd;
+  let runningCpfWithdrawn = totalCpf + bsd + grants;
   const monthlyOARate = CPF_CONFIG.oaRate / 12;
   for (let m = 0; m < totalYears * 12; m++) {
     if (m >= buildTime * 12) {
@@ -263,7 +263,7 @@ function calcPath(p, shared) {
   if (levyState[p]) {
     resaleLevyAmt = calcResaleLevy(flatType);
   }
-  const netCashProceeds = sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP - cpfRefunded;
+  const netCashProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP - cpfRefunded);
 
   const combinedCPFAtMOP = s1Final.totalCPF + s2Final.totalCPF;
   const careerCashSaved = careerCash - totalCashDeployed;
