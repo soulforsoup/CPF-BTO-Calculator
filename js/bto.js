@@ -247,6 +247,14 @@ function calcPath(p, shared) {
     s2StartingOA = Math.max(0, shared.s2OA - Math.round(totalDeduction * (1 - s1Share)));
   }
 
+  // Mortgage shares based on current income (before projection)
+  const mortgageSplit = shared.mortgageSplit;
+  const currentTotalIncome = shared.s1Income + shared.s2Income;
+  let s1MortgageShare = mortgageSplit === 'proportional'
+    ? (currentTotalIncome > 0 ? shared.s1Income / currentTotalIncome : 0.5)
+    : 0.5;
+  let s2MortgageShare = 1 - s1MortgageShare;
+
   const s1Proj = projectCPF({
     currentAge: shared.s1Age, grossMonthlySalary: shared.s1Income,
     annualIncrement: shared.s1Increment, currentOA: s1StartingOA,
@@ -327,15 +335,11 @@ function calcPath(p, shared) {
     : Math.round(maxMonthlyPayment * buyerMonths);
   const cashCPFGap = sellingPrice - maxBuyerLoan;
 
-  let mortgageSplit = shared.mortgageSplit;
-  let s1MortgageShare, s2MortgageShare;
+  // Recalculate mortgage shares using projected salaries for retirement
   if (mortgageSplit === 'proportional') {
-    const totalIncome = s1Final.salary + s2Final.salary;
-    s1MortgageShare = totalIncome > 0 ? s1Final.salary / totalIncome : 0.5;
+    const projectedTotalIncome = s1Final.salary + s2Final.salary;
+    s1MortgageShare = projectedTotalIncome > 0 ? s1Final.salary / projectedTotalIncome : 0.5;
     s2MortgageShare = 1 - s1MortgageShare;
-  } else {
-    s1MortgageShare = 0.5;
-    s2MortgageShare = 0.5;
   }
 
   let s1Retire = null, s2Retire = null;
