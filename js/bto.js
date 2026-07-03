@@ -213,7 +213,7 @@ function calcPath(p, shared) {
 
   let loanAmount;
   if (loanType === 'hdb') {
-    const availableCPF = Math.max(0, currentCombinedOA - 20000);
+    const availableCPF = Math.max(0, availableOA - 20000);
     const cpfForDownpayment = availableCPF;
     loanAmount = Math.round(Math.max(0, price - cpfForDownpayment - grants));
     s2Cpf = Math.max(0, cpfForDownpayment - s1Cpf);
@@ -292,7 +292,7 @@ function calcPath(p, shared) {
 
   const s1CpfRefunded = Math.round(s1RunningCpf);
   const s2CpfRefunded = Math.round(s2RunningCpf);
-  const cpfRefunded = s1CpfRefunded + s2CpfRefunded;
+  let cpfRefunded = s1CpfRefunded + s2CpfRefunded;
 
   const careerCash = shared.monthlyCashSavings * totalYears * 12;
   const sellingPrice = calcPropertyValueWithDecay(price, growth, totalYears, leaseAtPurchase);
@@ -310,6 +310,7 @@ function calcPath(p, shared) {
   // Capped CPF refund (negative sale scenario: HDB writes off shortfall)
   const saleProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP);
   const actualCpfRefund = Math.min(cpfRefunded, saleProceeds);
+  cpfRefunded = actualCpfRefund;
   const s1ActualRefund = cpfRefunded > 0 ? Math.round(actualCpfRefund * (s1CpfRefunded / cpfRefunded)) : 0;
   const s2ActualRefund = actualCpfRefund - s1ActualRefund;
 
