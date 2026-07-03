@@ -146,7 +146,7 @@ function projectCPF(params) {
     currentOA, currentSA, currentMA, currentRA,
     targetAge, monthlyCashSavings, annualBonus,
     monthlyMortgage, mortgageTenure, mortgageStartAge,
-    startingCash,
+    startingCash, hpsPremium,
   } = params;
 
   let oa = currentOA || 0;
@@ -159,7 +159,7 @@ function projectCPF(params) {
   const mortgageStartYr = (mortgageStartAge !== undefined ? mortgageStartAge : 999) - currentAge;
   const mortgageEndYr = mortgageStartYr + (mortgageTenure || 0);
 
-  for (let year = 0; year <= targetAge - currentAge; year++) {
+  for (let year = 0; year < targetAge - currentAge; year++) {
     const age = currentAge + year;
     const cappedSalaryForAW = Math.min(salary, CPF_CONFIG.owCeiling);
     const awRoom = Math.max(0, CPF_CONFIG.awAnnualCeiling - (cappedSalaryForAW * 12));
@@ -167,6 +167,7 @@ function projectCPF(params) {
     let yearOA = 0, yearSA = 0, yearRA = 0, yearMA = 0;
     let yearContrib = 0;
     let totalContrib = 0;
+    let mortgageDeductedThisYear = 0;
 
     for (let month = 0; month < 12; month++) {
       const mc = calcMonthlyCPF(salary, age);
@@ -181,8 +182,9 @@ function projectCPF(params) {
 
       if (monthlyMortgage && mortgageTenure && mortgageStartAge !== undefined) {
         if (age >= mortgageStartAge && age < mortgageStartAge + mortgageTenure) {
-          const deduction = Math.min(monthlyMortgage, oa);
-          oa -= deduction;
+          const availableOA = oa + yearOA - mortgageDeductedThisYear;
+          const deduction = Math.min(monthlyMortgage, availableOA);
+          mortgageDeductedThisYear += deduction;
           const shortfall = monthlyMortgage - deduction;
           if (shortfall > 0) {
             cash -= shortfall;
@@ -224,6 +226,7 @@ function projectCPF(params) {
     }
 
     oa += yearOA;
+    oa -= mortgageDeductedThisYear;
     ma += yearMA;
 
     const currentBHS = Math.round(CPF_CONFIG.bhs * Math.pow(1 + CPF_CONFIG.bhsGrowthRate, year));
@@ -277,9 +280,17 @@ function projectCPF(params) {
       age
     );
     oa += interest.oaInt;
-    if (age < 55) sa += interest.saInt;
-    else ra += interest.raInt + interest.raExtra;
+    if (age < 55) {
+      sa += interest.saInt + interest.totalExtra;
+    } else {
+      ra += interest.raInt + interest.totalExtra;
+    }
     ma += interest.maInt;
+
+    if (hpsPremium) {
+      const hpsDeduction = Math.min(hpsPremium, oa);
+      oa -= hpsDeduction;
+    }
 
     if (ma > currentBHS) {
       const overflow = ma - currentBHS;
@@ -302,6 +313,7 @@ function projectCPF(params) {
       cash: Math.round(cash),
       netWorth: Math.round(oa + (age < 55 ? sa : ra) + ma + cash),
       interest: Math.round(interest.oaInt + (age < 55 ? interest.saInt : interest.raInt + interest.raExtra) + interest.maInt),
+      mortgagePaidFromCPF: Math.round(mortgageDeductedThisYear),
     });
 
     if (annualIncrement) {
@@ -374,12 +386,14 @@ function calcLBSProceeds(propertyValue, flatType) {
 }
 
 function calcLBSBonus(flatType, totalTopUp) {
+  if (totalTopUp <= 0) return 0;
   if (totalTopUp >= 60000) {
     if (flatType === '2room' || flatType === '3room') return 30000;
     if (flatType === '4room') return 15000;
     return 7500;
   }
-  return 0;
+  const rates = { '2room': 0.50, '3room': 0.50, '4room': 0.25, '5room': 0.125, 'exec': 0.125 };
+  return Math.round(totalTopUp * (rates[flatType] || 0.25));
 }
 
 // Bala's Curve — leasehold decay as percentage of freehold value
