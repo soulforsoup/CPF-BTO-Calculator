@@ -544,6 +544,7 @@ function calcPath(p, shared) {
     cpfLife1, cpfLife2, cpfLifeTotal: cpfLife1 + cpfLife2,
     resaleData, lbsData,
     currentS1OA: shared.s1OA, currentS2OA: shared.s2OA,
+    leaseAtPurchase,
   };
 }
 
@@ -915,8 +916,8 @@ function renderBTOCharts(a, b) {
   // Property Value vs Mortgage
   const maxYears = Math.max(a.totalYears, b.totalYears);
   const years = Array.from({ length: maxYears + 1 }, (_, i) => i);
-  const aValue = years.map(y => calcSellingPrice(a.price, a.growth, y));
-  const bValue = years.map(y => calcSellingPrice(b.price, b.growth, y));
+  const aValue = years.map(y => calcPropertyValueWithDecay(a.price, a.growth, y, a.leaseAtPurchase));
+  const bValue = years.map(y => calcPropertyValueWithDecay(b.price, b.growth, y, b.leaseAtPurchase));
   const aMortgage = years.map(y => y <= a.buildTime ? 0 : calcMortgageBalance(a.loanAmount, a.loanRate, a.tenure, y - a.buildTime));
   const bMortgage = years.map(y => y <= b.buildTime ? 0 : calcMortgageBalance(b.loanAmount, b.loanRate, b.tenure, y - b.buildTime));
 
