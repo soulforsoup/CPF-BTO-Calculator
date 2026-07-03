@@ -111,10 +111,10 @@ function calcAnnualInterest(oa, sa, ra, ma, age, oaContrib, saContrib, raContrib
   const raC = raContrib || 0;
   const maC = maContrib || 0;
 
-  let oaInt = (oa - oaC / 2) * CPF_CONFIG.oaRate;
-  let saInt = (sa - saC / 2) * CPF_CONFIG.saRate;
-  let maInt = (ma - maC / 2) * CPF_CONFIG.maRate;
-  let raInt = (ra - raC / 2) * CPF_CONFIG.raRate;
+  let oaInt = Math.max(0, oa - oaC / 2) * CPF_CONFIG.oaRate;
+  let saInt = Math.max(0, sa - saC / 2) * CPF_CONFIG.saRate;
+  let maInt = Math.max(0, ma - maC / 2) * CPF_CONFIG.maRate;
+  let raInt = Math.max(0, ra - raC / 2) * CPF_CONFIG.raRate;
 
   let remainingCap = CPF_CONFIG.extraInterestCap;
   let saExtra = 0, raExtra = 0, maExtra = 0, raExtra55 = 0;
