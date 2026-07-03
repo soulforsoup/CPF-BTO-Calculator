@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BTO Property Calculator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">CPF & BTO Calculator</div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="salary.html" class="nav-link">Salary Calculator</a>
+      <a href="bto.html" class="nav-link active">BTO Calculator</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="page-header">
+      <h1>BTO Property Calculator</h1>
+      <p>Compare two BTO paths side-by-side. Standard vs PLH/Plus, with custom clawback and resale levy modeling.</p>
+    </div>
+
+    <div id="salary-badge" style="display:none;">
+      <div class="badge" id="badge-text"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Shared Inputs (Both Spouses)</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Spouse 1 Gross Monthly Income ($)</label>
+          <input type="number" id="s1-income" value="5000" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Spouse 2 Gross Monthly Income ($)</label>
+          <input type="number" id="s2-income" value="4000" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Spouse 1 Annual Increment (%)</label>
+          <input type="number" id="s1-increment" value="3" min="0" max="20" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Spouse 2 Annual Increment (%)</label>
+          <input type="number" id="s2-increment" value="3" min="0" max="20" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Spouse 1 Current CPF OA ($)</label>
+          <input type="number" id="s1-oa" value="20000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Spouse 1 Current CPF SA ($)</label>
+          <input type="number" id="s1-sa" value="10000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Spouse 1 Current CPF MA ($)</label>
+          <input type="number" id="s1-ma" value="5000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Spouse 2 Current CPF OA ($)</label>
+          <input type="number" id="s2-oa" value="15000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Spouse 2 Current CPF SA ($)</label>
+          <input type="number" id="s2-sa" value="8000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Spouse 2 Current CPF MA ($)</label>
+          <input type="number" id="s2-ma" value="4000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Current Age (Spouse 1)</label>
+          <input type="number" id="s1-age" value="30" min="20" max="70">
+        </div>
+        <div class="form-group">
+          <label>Current Age (Spouse 2)</label>
+          <input type="number" id="s2-age" value="28" min="20" max="70">
+        </div>
+        <div class="form-group">
+          <label>Combined Monthly Cash Savings ($)</label>
+          <input type="number" id="monthly-cash-savings" value="1500" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Buyer Max Income Ceiling ($)</label>
+          <input type="number" id="buyer-ceiling" value="14000" min="0" step="1000">
+        </div>
+      </div>
+    </div>
+
+    <div class="comparison-grid">
+      <div class="path-panel path-a">
+        <h3>Path A - Standard BTO</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Purchase Price ($)</label>
+            <input type="number" id="a-price" value="400000" min="0" step="10000">
+          </div>
+          <div class="form-group">
+            <label>MOP (Years)</label>
+            <input type="number" id="a-mop" value="5" min="3" max="10">
+          </div>
+          <div class="form-group">
+            <label>Annual Growth Rate (%)</label>
+            <input type="number" id="a-growth" value="3" min="-5" max="15" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Clawback Type</label>
+            <select id="a-clawback-type">
+              <option value="none">None (Standard)</option>
+              <option value="plh">PLH</option>
+              <option value="plus">Plus</option>
+            </select>
+          </div>
+          <div class="form-group" id="a-clawback-pct-group" style="display:none;">
+            <label>Clawback %</label>
+            <input type="number" id="a-clawback-pct" value="8" min="0" max="25" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Loan Interest Rate (%)</label>
+            <input type="number" id="a-loan-rate" value="2.6" min="0" max="6" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Loan Tenure (Years)</label>
+            <input type="number" id="a-tenure" value="25" min="5" max="30">
+          </div>
+          <div class="form-group">
+            <label>Cash Deposit ($)</label>
+            <input type="number" id="a-cash-deposit" value="10000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>CPF Deposit ($)</label>
+            <input type="number" id="a-cpf-deposit" value="20000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>CPF Grants ($)</label>
+            <input type="number" id="a-grants" value="40000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>Renovation & Furnishing ($)</label>
+            <input type="number" id="a-reno" value="30000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>Monthly Property Tax & S&CC ($)</label>
+            <input type="number" id="a-monthly-costs" value="150" min="0" step="10">
+          </div>
+          <div class="form-group">
+            <label>Monthly HPS Premium ($)</label>
+            <input type="number" id="a-hps" value="50" min="0" step="10">
+          </div>
+          <div class="form-group">
+            <label>Resale Levy (Toggle)</label>
+            <div class="toggle-group">
+              <div class="toggle" id="a-levy-toggle" onclick="toggleLevy('a')"></div>
+              <span id="a-levy-label">Off</span>
+            </div>
+          </div>
+          <div class="form-group" id="a-flat-type-group" style="display:none;">
+            <label>Flat Type</label>
+            <select id="a-flat-type">
+              <option value="4room">4-Room</option>
+              <option value="3room">3-Room</option>
+              <option value="5room">5-Room</option>
+              <option value="exec">Executive</option>
+              <option value="2room">2-Room</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="path-panel path-b">
+        <h3>Path B - PLH/Plus BTO</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Purchase Price ($)</label>
+            <input type="number" id="b-price" value="500000" min="0" step="10000">
+          </div>
+          <div class="form-group">
+            <label>MOP (Years)</label>
+            <input type="number" id="b-mop" value="5" min="3" max="10">
+          </div>
+          <div class="form-group">
+            <label>Annual Growth Rate (%)</label>
+            <input type="number" id="b-growth" value="4" min="-5" max="15" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Clawback Type</label>
+            <select id="b-clawback-type">
+              <option value="plh" selected>PLH</option>
+              <option value="plus">Plus</option>
+              <option value="none">None (Standard)</option>
+            </select>
+          </div>
+          <div class="form-group" id="b-clawback-pct-group">
+            <label>Clawback %</label>
+            <input type="number" id="b-clawback-pct" value="8" min="0" max="25" step="0.5">
+          </div>
+          <div class="form-group">
+            <label>Loan Interest Rate (%)</label>
+            <input type="number" id="b-loan-rate" value="2.6" min="0" max="6" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Loan Tenure (Years)</label>
+            <input type="number" id="b-tenure" value="25" min="5" max="30">
+          </div>
+          <div class="form-group">
+            <label>Cash Deposit ($)</label>
+            <input type="number" id="b-cash-deposit" value="15000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>CPF Deposit ($)</label>
+            <input type="number" id="b-cpf-deposit" value="30000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>CPF Grants ($)</label>
+            <input type="number" id="b-grants" value="50000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>Renovation & Furnishing ($)</label>
+            <input type="number" id="b-reno" value="35000" min="0" step="1000">
+          </div>
+          <div class="form-group">
+            <label>Monthly Property Tax & S&CC ($)</label>
+            <input type="number" id="b-monthly-costs" value="180" min="0" step="10">
+          </div>
+          <div class="form-group">
+            <label>Monthly HPS Premium ($)</label>
+            <input type="number" id="b-hps" value="60" min="0" step="10">
+          </div>
+          <div class="form-group">
+            <label>Resale Levy (Toggle)</label>
+            <div class="toggle-group">
+              <div class="toggle" id="b-levy-toggle" onclick="toggleLevy('b')"></div>
+              <span id="b-levy-label">Off</span>
+            </div>
+          </div>
+          <div class="form-group" id="b-flat-type-group" style="display:none;">
+            <label>Flat Type</label>
+            <select id="b-flat-type">
+              <option value="4room">4-Room</option>
+              <option value="3room">3-Room</option>
+              <option value="5room">5-Room</option>
+              <option value="exec">Executive</option>
+              <option value="2room">2-Room</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="calculateBTO()">Calculate Comparison</button>
+
+    <div id="bto-results" style="display:none;">
+      <div class="comparison-grid">
+        <div class="path-panel path-a" id="a-results"></div>
+        <div class="path-panel path-b" id="b-results"></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Net Cash Proceeds Comparison</h3>
+          <canvas id="chart-proceeds"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Property Value vs Mortgage</h3>
+          <canvas id="chart-value-mortgage"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Household Wealth Breakdown</h3>
+          <canvas id="chart-household"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Snapshots Comparison</h3>
+          <canvas id="chart-snapshots"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>CPF & BTO Calculator &mdash; Static site, no data leaves your browser.</p>
+  </footer>
+
+  <script src="js/cpf-engine.js"></script>
+  <script src="js/bto.js"></script>
+</body>
+</html>

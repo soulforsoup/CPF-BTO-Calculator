@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salary & CPF Calculator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">CPF & BTO Calculator</div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="salary.html" class="nav-link active">Salary Calculator</a>
+      <a href="bto.html" class="nav-link">BTO Calculator</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="page-header">
+      <h1>Salary & CPF Calculator</h1>
+      <p>Project your CPF balances from now to retirement. Accounts for contribution rate changes at every age bracket.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Husband</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Current Age</label>
+          <input type="number" id="h-age" value="30" min="20" max="70">
+        </div>
+        <div class="form-group">
+          <label>Gross Monthly Salary ($)</label>
+          <input type="number" id="h-salary" value="5000" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Annual Increment (%)</label>
+          <input type="number" id="h-increment" value="3" min="0" max="20" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Current CPF OA ($)</label>
+          <input type="number" id="h-oa" value="20000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Current CPF SA ($)</label>
+          <input type="number" id="h-sa" value="10000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Current CPF MA ($)</label>
+          <input type="number" id="h-ma" value="5000" min="0" step="1000">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Wife</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Current Age</label>
+          <input type="number" id="w-age" value="28" min="20" max="70">
+        </div>
+        <div class="form-group">
+          <label>Gross Monthly Salary ($)</label>
+          <input type="number" id="w-salary" value="4000" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Annual Increment (%)</label>
+          <input type="number" id="w-increment" value="3" min="0" max="20" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>Current CPF OA ($)</label>
+          <input type="number" id="w-oa" value="15000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Current CPF SA ($)</label>
+          <input type="number" id="w-sa" value="8000" min="0" step="1000">
+        </div>
+        <div class="form-group">
+          <label>Current CPF MA ($)</label>
+          <input type="number" id="w-ma" value="4000" min="0" step="1000">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Shared Settings</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Target Retirement Age</label>
+          <input type="number" id="retirement-age" value="65" min="55" max="70">
+        </div>
+        <div class="form-group">
+          <label>Combined Monthly Cash Savings ($)</label>
+          <input type="number" id="monthly-savings" value="1500" min="0" step="100">
+        </div>
+        <div class="form-group">
+          <label>Combined Annual Bonus ($)</label>
+          <input type="number" id="annual-bonus" value="15000" min="0" step="500">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="calculate()">Calculate Projections</button>
+
+    <div id="results" style="display:none;">
+      <div class="section">
+        <div class="section-title">Summary</div>
+        <div class="summary-cards" id="summary-cards"></div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>CPF Balances Over Time (Combined)</h3>
+          <canvas id="chart-cpf"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Net Worth Trajectory (Combined)</h3>
+          <canvas id="chart-networth"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Retirement Income Breakdown</h3>
+          <canvas id="chart-income"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Asset Allocation at Retirement</h3>
+          <canvas id="chart-allocation"></canvas>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Husband - Year by Year</div>
+        <div class="table-wrapper"><table id="table-husband"></table></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Wife - Year by Year</div>
+        <div class="table-wrapper"><table id="table-wife"></table></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>CPF & BTO Calculator &mdash; Static site, no data leaves your browser.</p>
+  </footer>
+
+  <script src="js/cpf-engine.js"></script>
+  <script src="js/salary.js"></script>
+</body>
+</html>
