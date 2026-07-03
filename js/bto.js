@@ -150,10 +150,9 @@ function calcPath(p, shared) {
   let excessGrant = 0;
 
   if (timeline === 'bto') {
-    const bookingFee = price * 0.05;
-    const stage1Total = bookingFee + bsd;
-    s1Cpf = Math.min(currentCombinedOA, bsd);
-    s1Cash = bookingFee + Math.max(0, bsd - currentCombinedOA);
+    const stage1Total = price * 0.05 + bsd;
+    s1Cpf = Math.min(currentCombinedOA, stage1Total);
+    s1Cash = Math.max(0, stage1Total - s1Cpf);
 
     const grantOffset = Math.min(grants, price * 0.20);
     const stage2Total = Math.max(0, price * 0.20 - grantOffset);
@@ -215,8 +214,9 @@ function calcPath(p, shared) {
   let loanAmount;
   if (loanType === 'hdb') {
     const availableCPF = Math.max(0, currentCombinedOA - 20000);
-    const cpfForDownpayment = Math.min(availableCPF, price * 0.25);
+    const cpfForDownpayment = availableCPF;
     loanAmount = Math.round(Math.max(0, price - cpfForDownpayment - grants));
+    s2Cpf = Math.max(0, cpfForDownpayment - s1Cpf);
   } else {
     loanAmount = Math.round(price * CPF_CONFIG.hdbLtv);
   }
@@ -232,7 +232,7 @@ function calcPath(p, shared) {
   const combinedOA = s1MonthlyOA + s2MonthlyOA;
 
   let totalCashDeployed = totalCash + reno + monthlyCosts * mop * 12;
-  let totalCPFUsed = totalCpf + bsd;
+  let totalCPFUsed = totalCpf;
   // Accrued CPF calculated after projection (needs mortgagePaidFromCPF data)
 
   // For Forever Stay, deduct downpayment + BSD from starting OA
@@ -253,6 +253,9 @@ function calcPath(p, shared) {
     currentSA: shared.s1SA, currentMA: shared.s1MA,
     targetAge: shared.s1Age + totalYears, monthlyCashSavings: 0, annualBonus: 0,
     hpsPremium: hps * 12,
+    monthlyMortgage: monthlyMortgage * s1MortgageShare,
+    mortgageTenure: mop,
+    mortgageStartAge: shared.s1Age + buildTime,
   });
   const s2Proj = projectCPF({
     currentAge: shared.s2Age, grossMonthlySalary: shared.s2Income,
@@ -260,24 +263,36 @@ function calcPath(p, shared) {
     currentSA: shared.s2SA, currentMA: shared.s2MA,
     targetAge: shared.s2Age + totalYears, monthlyCashSavings: 0, annualBonus: 0,
     hpsPremium: hps * 12,
+    monthlyMortgage: monthlyMortgage * s2MortgageShare,
+    mortgageTenure: mop,
+    mortgageStartAge: shared.s2Age + buildTime,
   });
   const s1Final = s1Proj[s1Proj.length - 1];
   const s2Final = s2Proj[s2Proj.length - 1];
 
-  // Accrued CPF using actual CPF mortgage deductions from projection
-  let runningCpfWithdrawn = totalCpf + bsd + grants;
+  // Per-spouse accrued CPF tracking
+  const s1ShareOfCPF = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
+  const s2ShareOfCPF = 1 - s1ShareOfCPF;
+
+  let s1RunningCpf = s1Cpf * s1ShareOfCPF;
+  let s2RunningCpf = s1Cpf * s2ShareOfCPF;
+
   for (let y = 0; y < totalYears; y++) {
-    let cpfMortgageThisYear = 0;
-    if (y >= buildTime) {
-      cpfMortgageThisYear += (s1Proj[y]?.mortgagePaidFromCPF || 0);
-      cpfMortgageThisYear += (s2Proj[y]?.mortgagePaidFromCPF || 0);
+    if (y === buildTime) {
+      s1RunningCpf += (s2Cpf * s1ShareOfCPF) + (grants / 2);
+      s2RunningCpf += (s2Cpf * s2ShareOfCPF) + (grants / 2);
     }
-    runningCpfWithdrawn += cpfMortgageThisYear;
-    runningCpfWithdrawn *= (1 + CPF_CONFIG.oaRate);
+    if (y >= buildTime) {
+      s1RunningCpf += (s1Proj[y]?.mortgagePaidFromCPF || 0) + (s1Proj[y]?.hpsPaidFromCPF || 0);
+      s2RunningCpf += (s2Proj[y]?.mortgagePaidFromCPF || 0) + (s2Proj[y]?.hpsPaidFromCPF || 0);
+    }
+    s1RunningCpf *= (1 + CPF_CONFIG.oaRate);
+    s2RunningCpf *= (1 + CPF_CONFIG.oaRate);
   }
-  const cpfRefunded = Math.round(runningCpfWithdrawn);
-  const totalMortgagePaid = monthlyMortgage * mop * 12;
-  const accruedCPF = cpfRefunded - (totalCpf + bsd + totalMortgagePaid);
+
+  const s1CpfRefunded = Math.round(s1RunningCpf);
+  const s2CpfRefunded = Math.round(s2RunningCpf);
+  const cpfRefunded = s1CpfRefunded + s2CpfRefunded;
 
   const careerCash = shared.monthlyCashSavings * totalYears * 12;
   const sellingPrice = calcPropertyValueWithDecay(price, growth, totalYears, leaseAtPurchase);
@@ -291,6 +306,12 @@ function calcPath(p, shared) {
     resaleLevyAmt = calcResaleLevy(flatType);
   }
   const netCashProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP - cpfRefunded);
+
+  // Capped CPF refund (negative sale scenario: HDB writes off shortfall)
+  const saleProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP);
+  const actualCpfRefund = Math.min(cpfRefunded, saleProceeds);
+  const s1ActualRefund = cpfRefunded > 0 ? Math.round(actualCpfRefund * (s1CpfRefunded / cpfRefunded)) : 0;
+  const s2ActualRefund = actualCpfRefund - s1ActualRefund;
 
   const combinedCPFAtMOP = s1Final.totalCPF + s2Final.totalCPF;
   const careerCashSaved = careerCash - totalCashDeployed;
@@ -335,14 +356,18 @@ function calcPath(p, shared) {
     const resaleDP = resalePrice * 0.25;
     const resaleNetDP = Math.max(0, resaleDP - resaleGrants);
 
-    const totalOAAtSale = s1Final.oa + s2Final.oa;
-    const s1Share = totalOAAtSale > 0 ? s1Final.oa / totalOAAtSale : 0.5;
+    // Add capped CPF refund to OA for resale purchase
+    const s1OaWithRefund = s1Final.oa + s1ActualRefund;
+    const s2OaWithRefund = s2Final.oa + s2ActualRefund;
+
+    const totalOAAtSale = s1OaWithRefund + s2OaWithRefund;
+    const s1Share = totalOAAtSale > 0 ? s1OaWithRefund / totalOAAtSale : 0.5;
     const s2Share = 1 - s1Share;
 
-    const s1ForBSD = Math.min(s1Final.oa, resaleBSD * s1Share);
-    const s2ForBSD = Math.min(s2Final.oa, resaleBSD * s2Share);
-    const s1AfterBSD = s1Final.oa - s1ForBSD;
-    const s2AfterBSD = s2Final.oa - s2ForBSD;
+    const s1ForBSD = Math.min(s1OaWithRefund, resaleBSD * s1Share);
+    const s2ForBSD = Math.min(s2OaWithRefund, resaleBSD * s2Share);
+    const s1AfterBSD = s1OaWithRefund - s1ForBSD;
+    const s2AfterBSD = s2OaWithRefund - s2ForBSD;
 
     const s1ForDP = Math.min(s1AfterBSD, resaleNetDP * s1Share);
     const s2ForDP = Math.min(s2AfterBSD, resaleNetDP * s2Share);

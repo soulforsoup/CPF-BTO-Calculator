@@ -35,9 +35,9 @@ const CPF_CONFIG = {
     { maxAge: 45,  oa: 0.5676, sa: 0.1892, ma: 0.2432 },
     { maxAge: 50,  oa: 0.5135, sa: 0.2162, ma: 0.2703 },
     { maxAge: 55,  oa: 0.4054, sa: 0.3108, ma: 0.2838 },
-    { maxAge: 60,  oa: 0.3529, sa: 0.2647, ma: 0.3824 },
-    { maxAge: 65,  oa: 0.1400, sa: 0.1000, ma: 0.7600 },
-    { maxAge: 70,  oa: 0.0606, sa: 0.0606, ma: 0.8788 },
+    { maxAge: 60,  oa: 0.3530, sa: 0.3382, ma: 0.3088 },
+    { maxAge: 65,  oa: 0.1400, sa: 0.5400, ma: 0.3200 },
+    { maxAge: 70,  oa: 0.0606, sa: 0.4849, ma: 0.4545 },
     { maxAge: 999, oa: 0.0800, sa: 0.0800, ma: 0.8400 },
   ],
 
@@ -111,33 +111,46 @@ function calcAnnualInterest(oa, sa, ra, ma, age) {
   let maInt = ma * CPF_CONFIG.maRate;
   let raInt = ra * CPF_CONFIG.raRate;
 
-  let totalExtra = 0;
   let remainingCap = CPF_CONFIG.extraInterestCap;
+  let saExtra = 0, raExtra = 0, maExtra = 0, raExtra55 = 0;
 
   if (age >= 55) {
     const raUsed = Math.min(ra, remainingCap);
-    totalExtra += raUsed * CPF_CONFIG.extraInterestRate;
+    raExtra += raUsed * CPF_CONFIG.extraInterestRate;
     remainingCap -= raUsed;
   } else {
     const saUsed = Math.min(sa, remainingCap);
-    totalExtra += saUsed * CPF_CONFIG.extraInterestRate;
+    saExtra += saUsed * CPF_CONFIG.extraInterestRate;
     remainingCap -= saUsed;
   }
 
   const maUsed = Math.min(ma, remainingCap);
-  totalExtra += maUsed * CPF_CONFIG.extraInterestRate;
+  maExtra += maUsed * CPF_CONFIG.extraInterestRate;
   remainingCap -= maUsed;
 
   const oaUsed = Math.min(oa, remainingCap, 20000);
-  totalExtra += oaUsed * CPF_CONFIG.extraInterestRate;
-
-  let raExtra = 0;
+  const oaExtraGenerated = oaUsed * CPF_CONFIG.extraInterestRate;
   if (age >= 55) {
-    raExtra = Math.min(ra, CPF_CONFIG.raExtraInterestCap) * CPF_CONFIG.extraInterestRate;
-    totalExtra += raExtra;
+    raExtra += oaExtraGenerated;
+  } else {
+    saExtra += oaExtraGenerated;
   }
 
-  return { oaInt, saInt, maInt, raInt, totalExtra, raExtra };
+  if (age >= 55) {
+    let cap55 = 30000;
+    const raUsed55 = Math.min(ra, cap55);
+    raExtra55 += raUsed55 * CPF_CONFIG.extraInterestRate;
+    cap55 -= raUsed55;
+
+    const maUsed55 = Math.min(ma, cap55);
+    maExtra += maUsed55 * CPF_CONFIG.extraInterestRate;
+    cap55 -= maUsed55;
+
+    const oaUsed55 = Math.min(oa, cap55, 20000);
+    raExtra55 += oaUsed55 * CPF_CONFIG.extraInterestRate;
+  }
+
+  return { oaInt, saInt, maInt, raInt, saExtra, raExtra, maExtra, raExtra55 };
 }
 
 function projectCPF(params) {
@@ -168,6 +181,7 @@ function projectCPF(params) {
     let yearContrib = 0;
     let totalContrib = 0;
     let mortgageDeductedThisYear = 0;
+    let hpsPaidThisYear = 0;
 
     for (let month = 0; month < 12; month++) {
       const mc = calcMonthlyCPF(salary, age);
@@ -190,6 +204,12 @@ function projectCPF(params) {
             cash -= shortfall;
           }
         }
+      }
+
+      if (hpsPremium) {
+        const monthlyHPS = hpsPremium / 12;
+        const hpsDeduction = Math.min(monthlyHPS, oa + yearOA - mortgageDeductedThisYear - hpsPaidThisYear);
+        hpsPaidThisYear += Math.max(0, hpsDeduction);
       }
     }
 
@@ -227,6 +247,7 @@ function projectCPF(params) {
 
     oa += yearOA;
     oa -= mortgageDeductedThisYear;
+    oa -= hpsPaidThisYear;
     ma += yearMA;
 
     const currentBHS = Math.round(CPF_CONFIG.bhs * Math.pow(1 + CPF_CONFIG.bhsGrowthRate, year));
@@ -281,16 +302,11 @@ function projectCPF(params) {
     );
     oa += interest.oaInt;
     if (age < 55) {
-      sa += interest.saInt + interest.totalExtra;
+      sa += interest.saInt + interest.saExtra;
     } else {
-      ra += interest.raInt + interest.totalExtra;
+      ra += interest.raInt + interest.raExtra + interest.raExtra55;
     }
-    ma += interest.maInt;
-
-    if (hpsPremium) {
-      const hpsDeduction = Math.min(hpsPremium, oa);
-      oa -= hpsDeduction;
-    }
+    ma += interest.maInt + interest.maExtra;
 
     if (ma > currentBHS) {
       const overflow = ma - currentBHS;
@@ -314,6 +330,7 @@ function projectCPF(params) {
       netWorth: Math.round(oa + (age < 55 ? sa : ra) + ma + cash),
       interest: Math.round(interest.oaInt + (age < 55 ? interest.saInt : interest.raInt + interest.raExtra) + interest.maInt),
       mortgagePaidFromCPF: Math.round(mortgageDeductedThisYear),
+      hpsPaidFromCPF: Math.round(hpsPaidThisYear),
     });
 
     if (annualIncrement) {
