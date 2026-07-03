@@ -132,6 +132,10 @@
             <label>MOP (Years) <span class="tip" data-tip="Minimum Occupation Period — you must live in the flat for this many years before selling. Standard HDB BTO: 5 years.">?</span></label>
             <input type="number" id="a-mop" value="5" min="1" max="10">
           </div>
+          <div class="form-group" id="a-lease-group">
+            <label>Remaining Lease at Purchase (Years) <span class="tip" data-tip="99 years for new BTO. For resale, enter the remaining lease. Determines lease decay and LBS eligibility.">?</span></label>
+            <input type="number" id="a-lease" value="99" min="1" max="99">
+          </div>
           <div class="form-group">
             <label>Annual Growth Rate (%) <span class="tip" data-tip="Expected annual property appreciation. Singapore HDB historical average is ~2-4% p.a. Used to project your selling price.">?</span></label>
             <input type="number" id="a-growth" value="3" min="-5" max="15" step="0.5">
@@ -240,6 +244,10 @@
             <input type="number" id="a-resale-price" value="500000" min="0" step="10000">
           </div>
           <div class="form-group">
+            <label>Second Flat Remaining Lease (Years) <span class="tip" data-tip="Remaining lease of the resale flat you buy after selling. Determines lease decay and LBS eligibility for the second flat.">?</span></label>
+            <input type="number" id="a-resale-lease" value="75" min="30" max="99">
+          </div>
+          <div class="form-group">
             <label>Resale Growth Rate (%) <span class="tip" data-tip="Annual appreciation of the resale flat. Used to project property value to retirement.">?</span></label>
             <input type="number" id="a-resale-growth" value="2" min="-5" max="15" step="0.5">
           </div>
@@ -305,6 +313,10 @@
           <div class="form-group">
             <label>MOP (Years) <span class="tip" data-tip="Minimum Occupation Period. Standard HDB BTO: 5 years.">?</span></label>
             <input type="number" id="b-mop" value="5" min="1" max="10">
+          </div>
+          <div class="form-group" id="b-lease-group">
+            <label>Remaining Lease at Purchase (Years) <span class="tip" data-tip="99 years for new BTO. For resale, enter the remaining lease. Determines lease decay and LBS eligibility.">?</span></label>
+            <input type="number" id="b-lease" value="99" min="1" max="99">
           </div>
           <div class="form-group">
             <label>Annual Growth Rate (%) <span class="tip" data-tip="Expected annual property appreciation. Singapore HDB historical: ~2-4% p.a.">?</span></label>
@@ -412,6 +424,10 @@
           <div class="form-group">
             <label>Resale Purchase Price ($) <span class="tip" data-tip="Price of the resale flat. Your war chest shows what you have available.">?</span></label>
             <input type="number" id="b-resale-price" value="600000" min="0" step="10000">
+          </div>
+          <div class="form-group">
+            <label>Second Flat Remaining Lease (Years) <span class="tip" data-tip="Remaining lease of the resale flat you buy after selling. Determines lease decay and LBS eligibility for the second flat.">?</span></label>
+            <input type="number" id="b-resale-lease" value="75" min="30" max="99">
           </div>
           <div class="form-group">
             <label>Resale Growth Rate (%) <span class="tip" data-tip="Annual appreciation of the resale flat.">?</span></label>

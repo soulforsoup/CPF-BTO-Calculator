@@ -10,11 +10,11 @@ const BTO_SHARED_IDS = [
 ];
 
 const BTO_PATH_IDS = [
-  'timeline','build-time','price','valuation','mop','growth',
+  'timeline','build-time','price','valuation','lease','mop','growth',
   'clawback-type','clawback-pct','loan-type','loan-rate','tenure',
   'grants','reno','monthly-costs','hps','flat-type',
   'scenario',
-  'resale-price','resale-growth','resale-loan-rate','resale-tenure','resale-grants',
+  'resale-price','resale-lease','resale-growth','resale-loan-rate','resale-tenure','resale-grants',
   'lbs',
 ];
 
@@ -31,6 +31,9 @@ function onTimelineChange(path) {
   document.getElementById(path + '-valuation-group').style.display = timeline === 'resale' ? 'flex' : 'none';
   if (timeline === 'resale' && !valuationManual[path]) {
     document.getElementById(path + '-valuation').value = document.getElementById(path + '-price').value;
+  }
+  if (timeline === 'bto') {
+    document.getElementById(path + '-lease').value = 99;
   }
   autoCalcDeposit(path);
 }
@@ -57,7 +60,7 @@ function onScenarioChange(path) {
   const scenario = document.getElementById(path + '-scenario').value;
   document.getElementById(path + '-warchest').style.display = scenario === 'resale' ? 'block' : 'none';
   document.getElementById(path + '-resale-inputs').style.display = scenario === 'resale' ? 'grid' : 'none';
-  document.getElementById(path + '-lbs-section').style.display = scenario === 'forever' ? 'block' : 'none';
+  document.getElementById(path + '-lbs-section').style.display = 'block';
 }
 
 function autoCalcDeposit(path) {
@@ -104,6 +107,7 @@ function calcPath(p, shared) {
   const monthlyCosts = +document.getElementById(p + '-monthly-costs').value;
   const hps = +document.getElementById(p + '-hps').value;
   const flatType = document.getElementById(p + '-flat-type').value;
+  const leaseAtPurchase = +document.getElementById(p + '-lease').value || 99;
   const scenario = document.getElementById(p + '-scenario').value;
   const retirementAge = shared.retirementAge;
 
@@ -249,7 +253,7 @@ function calcPath(p, shared) {
   const s2Final = s2Proj[s2Proj.length - 1];
 
   const careerCash = shared.monthlyCashSavings * totalYears * 12;
-  const sellingPrice = calcSellingPrice(price, growth, totalYears);
+  const sellingPrice = calcPropertyValueWithDecay(price, growth, totalYears, leaseAtPurchase);
   const agentCommission = Math.round(sellingPrice * 0.02);
   let subsidyClawback = 0;
   if (clawbackType === 'plh' || clawbackType === 'plus') {
@@ -290,6 +294,7 @@ function calcPath(p, shared) {
 
   if (scenario === 'resale') {
     const resalePrice = +document.getElementById(p + '-resale-price').value;
+    const resaleLeaseAtPurchase = +document.getElementById(p + '-resale-lease').value || 75;
     const resaleGrowth = +document.getElementById(p + '-resale-growth').value;
     const resaleLoanRate = +document.getElementById(p + '-resale-loan-rate').value / 100;
     const resaleTenure = +document.getElementById(p + '-resale-tenure').value;
@@ -358,7 +363,7 @@ function calcPath(p, shared) {
       cashForResale, cashAfterResale,
       s1ForBSD, s2ForBSD, s1ForDP, s2ForDP,
       s1OaAfter, s2OaAfter,
-      resaleValueAtRetire: calcSellingPrice(resalePrice, resaleGrowth, yearsInResale),
+      resaleValueAtRetire: calcPropertyValueWithDecay(resalePrice, resaleGrowth, yearsInResale, resaleLeaseAtPurchase),
     };
   } else {
     const mortgageEndAge = shared.s1Age + buildTime + tenure;
@@ -395,75 +400,99 @@ function calcPath(p, shared) {
   let lbsData = null;
   const lbsOption = document.getElementById(p + '-lbs') ? document.getElementById(p + '-lbs').value : 'none';
 
-  if (scenario === 'forever' && lbsOption === 'at65') {
+  if (lbsOption === 'at65') {
     const lbsAge = 65;
-    const propertyValueAtLBS = calcSellingPrice(price, growth, lbsAge - shared.s1Age);
-    const lbsProceeds = calcLBSProceeds(propertyValueAtLBS, flatType);
+    const yearsToLBS = lbsAge - shared.s1Age;
 
-    const frsAtLBS = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, lbsAge - shared.s1Age));
-    const s1LBSShare = lbsProceeds / 2;
-    const s2LBSShare = lbsProceeds / 2;
+    // Use correct lease and price based on scenario
+    const lbsLease = scenario === 'resale'
+      ? (+document.getElementById(p + '-resale-lease').value || 75)
+      : leaseAtPurchase;
+    const lbsGrowth = scenario === 'resale'
+      ? (+document.getElementById(p + '-resale-growth').value)
+      : growth;
+    const lbsPrice = scenario === 'resale'
+      ? (+document.getElementById(p + '-resale-price').value)
+      : price;
 
-    const s1AtLBS = s1Retire.find(r => r.age === lbsAge);
-    const s2AtLBS = s2Retire.find(r => r.age === lbsAge);
+    const leaseAtLBS = lbsLease - yearsToLBS;
 
-    if (s1AtLBS && s2AtLBS && lbsAge < retirementAge) {
-      const s1RaTopup = Math.min(s1LBSShare, Math.max(0, frsAtLBS - s1AtLBS.ra));
-      const s2RaTopup = Math.min(s2LBSShare, Math.max(0, frsAtLBS - s2AtLBS.ra));
-      const totalTopUp = s1RaTopup + s2RaTopup;
-      const s1CashExcess = s1LBSShare - s1RaTopup;
-      const s2CashExcess = s2LBSShare - s2RaTopup;
-      const lbsBonus = calcLBSBonus(flatType, totalTopUp);
-      const splitBonus = lbsBonus / 2;
-
-      // Re-project from age 65 to retirement with LBS-adjusted balances
-      const s1RetireAfterLBS = projectCPF({
-        currentAge: lbsAge,
-        grossMonthlySalary: s1AtLBS.salary,
-        annualIncrement: shared.s1Increment,
-        currentOA: s1AtLBS.oa,
-        currentSA: 0,
-        currentMA: s1AtLBS.ma,
-        targetAge: retirementAge,
-        monthlyCashSavings: shared.monthlyCashSavings / 2,
-        annualBonus: 0,
-        startingCash: s1AtLBS.cash + s1CashExcess + splitBonus,
-      });
-
-      const s2RetireAfterLBS = projectCPF({
-        currentAge: lbsAge,
-        grossMonthlySalary: s2AtLBS.salary,
-        annualIncrement: shared.s2Increment,
-        currentOA: s2AtLBS.oa,
-        currentSA: 0,
-        currentMA: s2AtLBS.ma,
-        targetAge: retirementAge,
-        monthlyCashSavings: shared.monthlyCashSavings / 2,
-        annualBonus: 0,
-        startingCash: s2AtLBS.cash + s2CashExcess + splitBonus,
-      });
-
-      // Inject LBS RA top-up into the new projection
-      for (const row of s1RetireAfterLBS) {
-        row.ra += s1RaTopup;
-        row.totalCPF += s1RaTopup;
-        row.netWorth += s1RaTopup;
-      }
-      for (const row of s2RetireAfterLBS) {
-        row.ra += s2RaTopup;
-        row.totalCPF += s2RaTopup;
-        row.netWorth += s2RaTopup;
-      }
-
-      // Replace the original retirement projections
-      s1Retire = s1RetireAfterLBS;
-      s2Retire = s2RetireAfterLBS;
-
+    // 30-year minimum lease check for LBS at age 65
+    if (leaseAtLBS <= 30) {
       lbsData = {
-        propertyValueAtLBS, lbsProceeds,
-        s1RaTopup, s2RaTopup,
-        s1CashExcess, s2CashExcess, lbsBonus,
+        blocked: true,
+        leaseAtLBS,
+        reason: `Flat has only ${leaseAtLBS} years remaining at age 65. HDB requires retaining at least 30 years for LBS at this age.`,
       };
+    } else {
+      const propertyValueAtLBS = calcPropertyValueWithDecay(lbsPrice, lbsGrowth, yearsToLBS, lbsLease);
+      const lbsProceeds = calcLBSProceeds(propertyValueAtLBS, flatType);
+
+      const frsAtLBS = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsToLBS));
+      const s1LBSShare = lbsProceeds / 2;
+      const s2LBSShare = lbsProceeds / 2;
+
+      const s1AtLBS = s1Retire.find(r => r.age === lbsAge);
+      const s2AtLBS = s2Retire.find(r => r.age === lbsAge);
+
+      if (s1AtLBS && s2AtLBS && lbsAge < retirementAge) {
+        const s1RaTopup = Math.min(s1LBSShare, Math.max(0, frsAtLBS - s1AtLBS.ra));
+        const s2RaTopup = Math.min(s2LBSShare, Math.max(0, frsAtLBS - s2AtLBS.ra));
+        const totalTopUp = s1RaTopup + s2RaTopup;
+        const s1CashExcess = s1LBSShare - s1RaTopup;
+        const s2CashExcess = s2LBSShare - s2RaTopup;
+        const lbsBonus = calcLBSBonus(flatType, totalTopUp);
+        const splitBonus = lbsBonus / 2;
+
+        // Re-project from age 65 to retirement with LBS-adjusted balances
+        const s1RetireAfterLBS = projectCPF({
+          currentAge: lbsAge,
+          grossMonthlySalary: s1AtLBS.salary,
+          annualIncrement: shared.s1Increment,
+          currentOA: s1AtLBS.oa,
+          currentSA: 0,
+          currentMA: s1AtLBS.ma,
+          targetAge: retirementAge,
+          monthlyCashSavings: shared.monthlyCashSavings / 2,
+          annualBonus: 0,
+          startingCash: s1AtLBS.cash + s1CashExcess + splitBonus,
+        });
+
+        const s2RetireAfterLBS = projectCPF({
+          currentAge: lbsAge,
+          grossMonthlySalary: s2AtLBS.salary,
+          annualIncrement: shared.s2Increment,
+          currentOA: s2AtLBS.oa,
+          currentSA: 0,
+          currentMA: s2AtLBS.ma,
+          targetAge: retirementAge,
+          monthlyCashSavings: shared.monthlyCashSavings / 2,
+          annualBonus: 0,
+          startingCash: s2AtLBS.cash + s2CashExcess + splitBonus,
+        });
+
+        // Inject LBS RA top-up into the new projection
+        for (const row of s1RetireAfterLBS) {
+          row.ra += s1RaTopup;
+          row.totalCPF += s1RaTopup;
+          row.netWorth += s1RaTopup;
+        }
+        for (const row of s2RetireAfterLBS) {
+          row.ra += s2RaTopup;
+          row.totalCPF += s2RaTopup;
+          row.netWorth += s2RaTopup;
+        }
+
+        // Replace the original retirement projections
+        s1Retire = s1RetireAfterLBS;
+        s2Retire = s2RetireAfterLBS;
+
+        lbsData = {
+          propertyValueAtLBS, lbsProceeds,
+          s1RaTopup, s2RaTopup,
+          s1CashExcess, s2CashExcess, lbsBonus,
+        };
+      }
     }
   }
 
@@ -471,7 +500,7 @@ function calcPath(p, shared) {
   const s2AtRetire = s2Retire[s2Retire.length - 1];
 
   const yearsOwned = retirementAge - shared.s1Age;
-  const propertyValue = calcSellingPrice(price, growth, yearsOwned);
+  const propertyValue = calcPropertyValueWithDecay(price, growth, yearsOwned, leaseAtPurchase);
 
   const combinedCPFAtRetire = s1AtRetire.totalCPF + s2AtRetire.totalCPF;
   const combinedCashAtRetire = s1AtRetire.cash + s2AtRetire.cash;
@@ -591,7 +620,7 @@ function renderRetirementProjection(r, path) {
     `;
   }
 
-  if (r.scenario === 'forever' && r.lbsData) {
+  if (r.lbsData && !r.lbsData.blocked) {
     const ld = r.lbsData;
     html += `
       <div class="retirement-stage-title">Lease Buyback Scheme (Age 65)</div>
@@ -602,6 +631,14 @@ function renderRetirementProjection(r, path) {
       <div class="retirement-row"><span class="label">└─ Cash Excess</span><span class="value cash">${formatCurrency(ld.s1CashExcess + ld.s2CashExcess)}</span></div>
       <div class="retirement-row total"><span class="label">HDB Cash Bonus</span><span class="value cash">${formatCurrency(ld.lbsBonus)}</span></div>
       <div style="border-top:1px solid var(--border);margin:0.5rem 0;"></div>
+    `;
+  }
+
+  if (r.lbsData && r.lbsData.blocked) {
+    html += `
+      <div class="loan-warning" style="display:block;">
+        LBS Not Available: ${r.lbsData.reason}
+      </div>
     `;
   }
 

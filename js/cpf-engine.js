@@ -382,6 +382,43 @@ function calcLBSBonus(flatType, totalTopUp) {
   return 0;
 }
 
+// Bala's Curve — leasehold decay as percentage of freehold value
+const LEASE_DECAY_CURVE = [
+  { lease: 99, pct: 96.0 },
+  { lease: 90, pct: 93.3 },
+  { lease: 80, pct: 89.1 },
+  { lease: 70, pct: 83.6 },
+  { lease: 60, pct: 76.5 },
+  { lease: 50, pct: 67.5 },
+  { lease: 40, pct: 56.6 },
+  { lease: 30, pct: 43.6 },
+  { lease: 20, pct: 28.5 },
+  { lease: 10, pct: 11.5 },
+  { lease: 0,  pct: 0.0 },
+];
+
+function getLeaseDecayFactor(remainingLease) {
+  const lease = Math.max(0, Math.min(99, remainingLease));
+  for (let i = 0; i < LEASE_DECAY_CURVE.length - 1; i++) {
+    const upper = LEASE_DECAY_CURVE[i];
+    const lower = LEASE_DECAY_CURVE[i + 1];
+    if (lease >= lower.lease && lease <= upper.lease) {
+      const ratio = (lease - lower.lease) / (upper.lease - lower.lease);
+      return (lower.pct + ratio * (upper.pct - lower.pct)) / 100;
+    }
+  }
+  return 0;
+}
+
+function calcPropertyValueWithDecay(purchasePrice, growthRate, years, leaseAtPurchase) {
+  const remainingLeaseNow = leaseAtPurchase - years;
+  if (remainingLeaseNow <= 0) return 0;
+  const freeholdValue = purchasePrice * Math.pow(1 + growthRate / 100, years);
+  const decayNow = getLeaseDecayFactor(remainingLeaseNow);
+  const decayAtPurchase = getLeaseDecayFactor(leaseAtPurchase);
+  return Math.round(freeholdValue * (decayNow / decayAtPurchase));
+}
+
 function calcSubsidyClawback(resalePrice, clawbackPct) {
   return Math.round(resalePrice * (clawbackPct / 100));
 }
