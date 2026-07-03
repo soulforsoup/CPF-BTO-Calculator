@@ -16,6 +16,9 @@ const CPF_CONFIG = {
   ers: 330600,
   frsGrowthRate: 0.035,
 
+  bhs: 71500,
+  bhsGrowthRate: 0.04,
+
   hdbLtv: 0.75,
   hdbLoanRate: 0.026,
 
@@ -125,7 +128,7 @@ function calcAnnualInterest(oa, sa, ra, ma, age) {
   totalExtra += maUsed * CPF_CONFIG.extraInterestRate;
   remainingCap -= maUsed;
 
-  const oaUsed = Math.min(oa, remainingCap);
+  const oaUsed = Math.min(oa, remainingCap, 20000);
   totalExtra += oaUsed * CPF_CONFIG.extraInterestRate;
 
   let raExtra = 0;
@@ -223,6 +226,14 @@ function projectCPF(params) {
     oa += yearOA;
     ma += yearMA;
 
+    const currentBHS = Math.round(CPF_CONFIG.bhs * Math.pow(1 + CPF_CONFIG.bhsGrowthRate, year));
+    if (ma > currentBHS) {
+      const overflow = ma - currentBHS;
+      ma = currentBHS;
+      if (age < 55) sa += overflow;
+      else ra += overflow;
+    }
+
     if (age === 55) {
       const yearsFromProjectionStart = 55 - currentAge;
       const frsAt55 = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsFromProjectionStart));
@@ -264,6 +275,13 @@ function projectCPF(params) {
     if (age < 55) sa += interest.saInt;
     else ra += interest.raInt + interest.raExtra;
     ma += interest.maInt;
+
+    if (ma > currentBHS) {
+      const overflow = ma - currentBHS;
+      ma = currentBHS;
+      if (age < 55) sa += overflow;
+      else ra += overflow;
+    }
 
     rows.push({
       year,

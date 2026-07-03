@@ -207,12 +207,14 @@ function calcPath(p, shared) {
 
   let totalCashDeployed = totalCash + reno + (monthlyCosts + hps) * mop * 12;
   let totalCPFUsed = totalCpf + bsd;
-  let accruedCPF = 0;
+  let runningCpfWithdrawn = totalCpf + bsd;
+  const monthlyOARate = CPF_CONFIG.oaRate / 12;
   for (let m = 0; m < mop * 12; m++) {
-    if (combinedOA > 0) {
-      accruedCPF = (accruedCPF + combinedOA) * (1 + CPF_CONFIG.oaRate / 12);
-    }
+    runningCpfWithdrawn += monthlyMortgage;
+    runningCpfWithdrawn *= (1 + monthlyOARate);
   }
+  const cpfRefunded = Math.round(runningCpfWithdrawn);
+  const accruedCPF = cpfRefunded - (totalCpf + bsd + monthlyMortgage * mop * 12);
 
   const s1Proj = projectCPF({
     currentAge: shared.s1Age, grossMonthlySalary: shared.s1Income,
@@ -240,8 +242,7 @@ function calcPath(p, shared) {
   if (levyState[p]) {
     resaleLevyAmt = calcResaleLevy(flatType);
   }
-  const cpfRefunded = totalCPFUsed;
-  const netCashProceeds = sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP + cpfRefunded;
+  const netCashProceeds = sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP - cpfRefunded;
 
   const combinedCPFAtMOP = s1Final.totalCPF + s2Final.totalCPF;
   const careerCashSaved = careerCash - totalCashDeployed;
