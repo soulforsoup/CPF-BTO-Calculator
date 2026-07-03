@@ -450,7 +450,7 @@ function calcPath(p, shared) {
       const s1AtLBS = s1Retire.find(r => r.age === lbsAge);
       const s2AtLBS = s2Retire.find(r => r.age === lbsAge);
 
-      if (s1AtLBS && s2AtLBS && lbsAge < retirementAge) {
+      if (s1AtLBS && s2AtLBS && lbsAge <= retirementAge) {
         const s1RaTopup = Math.min(s1LBSShare, Math.max(0, frsAtLBS - s1AtLBS.ra));
         const s2RaTopup = Math.min(s2LBSShare, Math.max(0, frsAtLBS - s2AtLBS.ra));
         const totalTopUp = s1RaTopup + s2RaTopup;
@@ -459,7 +459,6 @@ function calcPath(p, shared) {
         const lbsBonus = calcLBSBonus(flatType, totalTopUp);
         const splitBonus = lbsBonus / 2;
 
-        // Re-project from age 65 with existing RA and ongoing mortgage
         const s1RetireAfterLBS = projectCPF({
           currentAge: lbsAge,
           grossMonthlySalary: s1AtLBS.salary,
@@ -474,7 +473,7 @@ function calcPath(p, shared) {
           startingCash: s1AtLBS.cash + s1CashExcess + splitBonus,
           monthlyMortgage: s1RetireMortgage,
           mortgageTenure: retireMortgageTenure,
-          mortgageStartAge: retireMortgageStartAge,
+          mortgageStartAge: shared.s1Age + totalYears,
         });
 
         const s2RetireAfterLBS = projectCPF({
@@ -491,12 +490,14 @@ function calcPath(p, shared) {
           startingCash: s2AtLBS.cash + s2CashExcess + splitBonus,
           monthlyMortgage: s2RetireMortgage,
           mortgageTenure: retireMortgageTenure,
-          mortgageStartAge: retireMortgageStartAge,
+          mortgageStartAge: shared.s2Age + totalYears,
         });
 
-        // Replace the original retirement projections
-        s1Retire = s1RetireAfterLBS;
-        s2Retire = s2RetireAfterLBS;
+        const s1Index = s1Retire.findIndex(r => r.age === lbsAge);
+        s1Retire.splice(s1Index, s1Retire.length - s1Index, ...s1RetireAfterLBS);
+
+        const s2Index = s2Retire.findIndex(r => r.age === lbsAge);
+        s2Retire.splice(s2Index, s2Retire.length - s2Index, ...s2RetireAfterLBS);
 
         lbsData = {
           propertyValueAtLBS, lbsProceeds,
