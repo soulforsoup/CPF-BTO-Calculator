@@ -1,6 +1,50 @@
 let charts = {};
 
+const SALARY_INPUT_IDS = [
+  'h-age','h-salary','h-increment','h-oa','h-sa','h-ma',
+  'w-age','w-salary','w-increment','w-oa','w-sa','w-ma',
+  'retirement-age','monthly-savings','annual-bonus',
+];
+
+function saveSalaryInputs() {
+  const data = {};
+  SALARY_INPUT_IDS.forEach(id => { data[id] = document.getElementById(id).value; });
+  localStorage.setItem('cpf_salary_inputs', JSON.stringify(data));
+
+  localStorage.setItem('cpfCalculatorData', JSON.stringify({
+    spouse1: {
+      age: +document.getElementById('h-age').value,
+      salary: +document.getElementById('h-salary').value,
+      increment: +document.getElementById('h-increment').value,
+      oa: +document.getElementById('h-oa').value,
+      sa: +document.getElementById('h-sa').value,
+      ma: +document.getElementById('h-ma').value,
+    },
+    spouse2: {
+      age: +document.getElementById('w-age').value,
+      salary: +document.getElementById('w-salary').value,
+      increment: +document.getElementById('w-increment').value,
+      oa: +document.getElementById('w-oa').value,
+      sa: +document.getElementById('w-sa').value,
+      ma: +document.getElementById('w-ma').value,
+    },
+    monthlySavings: +document.getElementById('monthly-savings').value || 0,
+  }));
+}
+
+function restoreSalaryInputs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('cpf_salary_inputs'));
+    if (!saved) return;
+    SALARY_INPUT_IDS.forEach(id => {
+      if (saved[id] !== undefined) document.getElementById(id).value = saved[id];
+    });
+  } catch (e) {}
+}
+
 function calculate() {
+  saveSalaryInputs();
+
   const hData = {
     currentAge: +document.getElementById('h-age').value,
     grossMonthlySalary: +document.getElementById('h-salary').value,
@@ -215,3 +259,5 @@ function renderCharts(hRows, wRows, hFinal, wFinal) {
     }
   });
 }
+
+document.addEventListener('DOMContentLoaded', restoreSalaryInputs);

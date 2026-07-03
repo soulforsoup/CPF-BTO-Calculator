@@ -1,6 +1,14 @@
 let btoCharts = {};
 let levyState = { a: false, b: false };
 
+const BTO_SHARED_IDS = [
+  's1-income','s2-income','s1-increment','s2-increment',
+  's1-oa','s1-sa','s1-ma','s2-oa','s2-sa','s2-ma',
+  's1-age','s2-age','monthly-cash-savings','buyer-ceiling',
+];
+
+const BTO_PATH_IDS = ['price','mop','growth','clawback-type','clawback-pct','loan-rate','tenure','cash-deposit','cpf-deposit','grants','reno','monthly-costs','hps','flat-type'];
+
 function toggleLevy(path) {
   levyState[path] = !levyState[path];
   const toggle = document.getElementById(path + '-levy-toggle');
@@ -19,9 +27,42 @@ document.querySelectorAll('[id$="-clawback-type"]').forEach(el => {
   });
 });
 
-window.addEventListener('DOMContentLoaded', () => {
-  loadSalaryData();
-});
+function saveBTOInputs() {
+  const data = {};
+  BTO_SHARED_IDS.forEach(id => { data[id] = document.getElementById(id).value; });
+  ['a','b'].forEach(p => {
+    BTO_PATH_IDS.forEach(id => { data[p + '-' + id] = document.getElementById(p + '-' + id).value; });
+    data[p + '-levy'] = levyState[p];
+  });
+  localStorage.setItem('cpf_bto_inputs', JSON.stringify(data));
+}
+
+function restoreBTOInputs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('cpf_bto_inputs'));
+    if (!saved) return;
+    BTO_SHARED_IDS.forEach(id => {
+      if (saved[id] !== undefined) document.getElementById(id).value = saved[id];
+    });
+    ['a','b'].forEach(p => {
+      BTO_PATH_IDS.forEach(id => {
+        const el = document.getElementById(p + '-' + id);
+        if (el && saved[p + '-' + id] !== undefined) el.value = saved[p + '-' + id];
+      });
+      if (saved[p + '-levy']) {
+        levyState[p] = true;
+        document.getElementById(p + '-levy-toggle').classList.add('active');
+        document.getElementById(p + '-levy-label').textContent = 'On';
+        document.getElementById(p + '-flat-type-group').style.display = 'block';
+      }
+      const ct = document.getElementById(p + '-clawback-type');
+      if (ct) {
+        const group = document.getElementById(p + '-clawback-pct-group');
+        group.style.display = ct.value === 'none' ? 'none' : 'block';
+      }
+    });
+  } catch (e) {}
+}
 
 function loadSalaryData() {
   try {
@@ -49,7 +90,14 @@ function loadSalaryData() {
   } catch (e) {}
 }
 
+window.addEventListener('DOMContentLoaded', () => {
+  loadSalaryData();
+  restoreBTOInputs();
+});
+
 function calculateBTO() {
+  saveBTOInputs();
+
   const shared = {
     s1Income: +document.getElementById('s1-income').value,
     s2Income: +document.getElementById('s2-income').value,
