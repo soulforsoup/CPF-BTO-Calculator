@@ -176,6 +176,13 @@
             <input type="number" id="a-tenure" value="25" min="5" max="30">
           </div>
           <div class="form-group">
+            <label>Downpayment Scheme <span class="tip" data-tip="Standard: 10% at signing + 15% at key collection. Staggered (SDS): 5% at signing + 20% at key collection. SDS requires eligibility.">?</span></label>
+            <select id="a-deposit-scheme">
+              <option value="standard">Standard (10% / 15%)</option>
+              <option value="sds">Staggered SDS (5% / 20%)</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants (EHG, proximity grant, etc.). Disbursed at key collection (BTO) or completion (Resale).">?</span></label>
             <input type="number" id="a-grants" value="40000" min="0" step="1000">
           </div>
@@ -356,6 +363,13 @@
           <div class="form-group">
             <label>Loan Tenure (Years) <span class="tip" data-tip="Max 25 for HDB, 30 for bank.">?</span></label>
             <input type="number" id="b-tenure" value="25" min="5" max="30">
+          </div>
+          <div class="form-group">
+            <label>Downpayment Scheme <span class="tip" data-tip="Standard: 10% at signing + 15% at key collection. Staggered (SDS): 5% at signing + 20% at key collection. SDS requires eligibility.">?</span></label>
+            <select id="b-deposit-scheme">
+              <option value="standard">Standard (10% / 15%)</option>
+              <option value="sds">Staggered SDS (5% / 20%)</option>
+            </select>
           </div>
           <div class="form-group">
             <label>CPF Grants ($) <span class="tip" data-tip="Government housing grants. Disbursed at key collection (BTO) or completion (Resale).">?</span></label>

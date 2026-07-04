@@ -13,6 +13,7 @@ const BTO_SHARED_IDS = [
 const BTO_PATH_IDS = [
   'timeline','build-time','price','valuation','lease','mop','growth',
   'clawback-type','clawback-pct','loan-type','loan-rate','tenure',
+  'deposit-scheme',
   'grants','reno','monthly-costs','hps','flat-type',
   'scenario',
   'resale-price','resale-lease','resale-growth','resale-loan-rate','resale-tenure','resale-grants',
@@ -153,12 +154,16 @@ function calcPath(p, shared) {
   let excessGrant = 0;
 
   if (timeline === 'bto') {
-    const stage1Total = price * 0.05 + bsd;
+    const depositScheme = document.getElementById(p + '-deposit-scheme').value;
+    const stage1Pct = depositScheme === 'sds' ? 0.05 : 0.10;
+    const stage2Pct = depositScheme === 'sds' ? 0.20 : 0.15;
+
+    const stage1Total = price * stage1Pct + bsd;
     s1Cpf = Math.min(currentCombinedOA, stage1Total);
     s1Cash = Math.max(0, stage1Total - s1Cpf);
 
-    const grantOffset = Math.min(grants, price * 0.20);
-    const stage2Total = Math.max(0, price * 0.20 - grantOffset);
+    const grantOffset = Math.min(grants, price * stage2Pct);
+    const stage2Total = Math.max(0, price * stage2Pct - grantOffset);
     const remainingOA = projectedCombinedOA;
     s2Cpf = Math.min(remainingOA, stage2Total);
     s2Cash = Math.max(0, stage2Total - s2Cpf);
@@ -168,16 +173,16 @@ function calcPath(p, shared) {
     stage1Label = 'Signing (Now)';
     stage2Label = `Key Collection (Year ${buildTime})`;
     stage1Items = [
-      { label: '5% Booking Fee', value: price * 0.05 },
+      { label: `${(stage1Pct * 100)}% Signing`, value: price * stage1Pct },
       { label: 'Buyer\'s Stamp Duty (BSD)', value: bsd },
     ];
     stage2Items = [
-      { label: '20% of Price', value: price * 0.20 },
+      { label: `${(stage2Pct * 100)}% of Price`, value: price * stage2Pct },
     ];
     if (grantOffset > 0) stage2Items.push({ label: '− CPF Grants', value: -grantOffset, cls: 'cpf' });
     if (excessGrant > 0) stage2Items.push({ label: 'Excess Grant → CPF OA', value: -excessGrant, cls: 'cpf' });
   } else {
-    const optionFees = 5000;
+    const optionFees = price > 500000 ? 10000 : 5000;
     s1Cpf = Math.min(currentCombinedOA, bsd);
     s1Cash = optionFees + Math.max(0, bsd - s1Cpf);
 
@@ -253,15 +258,19 @@ function calcPath(p, shared) {
     s1StartingOA = Math.max(0, shared.s1OA - Math.round(totalDeduction * s1Share));
     s2StartingOA = Math.max(0, shared.s2OA - Math.round(totalDeduction * (1 - s1Share)));
   } else {
-    // BTO: Deduct only Stage 1 (5% + BSD) upfront
-    const stage1Total = price * 0.05 + bsd;
+    // BTO: Deduct Stage 1 upfront, Stage 2 via lumpSum at buildTime
+    const depositScheme = document.getElementById(p + '-deposit-scheme').value;
+    const stage1Pct = depositScheme === 'sds' ? 0.05 : 0.10;
+    const stage2Pct = depositScheme === 'sds' ? 0.20 : 0.15;
+
+    const stage1Total = price * stage1Pct + bsd;
     const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
     s1StartingOA = Math.max(0, shared.s1OA - Math.round(stage1Total * s1Share));
     s2StartingOA = Math.max(0, shared.s2OA - Math.round(stage1Total * (1 - s1Share)));
 
-    // Pre-compute Stage 2 (20% minus grants) to inject at buildTime
-    const grantOffset = Math.min(grants, price * 0.20);
-    const stage2Net = Math.max(0, price * 0.20 - grantOffset);
+    // Pre-compute Stage 2 to inject at buildTime
+    const grantOffset = Math.min(grants, price * stage2Pct);
+    const stage2Net = Math.max(0, price * stage2Pct - grantOffset);
     const projOaTotal = projectedS1OA + projectedS2OA;
     const s1ProjShare = projOaTotal > 0 ? projectedS1OA / projOaTotal : 0.5;
     s1Stage2Deduction = Math.round(stage2Net * s1ProjShare);
