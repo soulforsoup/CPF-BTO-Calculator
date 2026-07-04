@@ -224,20 +224,22 @@ function calcPath(p, shared) {
     }
   }
 
-  let loanAmount;
+  // Calculate maximum legal loan amount based on the 75% LTV limit
+  const baseLoanAmount = Math.round(Math.min(price, valuation) * CPF_CONFIG.hdbLtv);
+
   if (loanType === 'hdb') {
-    const stage1Principal = timeline === 'bto' ? (price * (document.getElementById(p + '-deposit-scheme').value === 'sds' ? 0.05 : 0.10)) : 5000;
-    const remainingPrice = Math.max(0, price - stage1Principal - grants);
-    const availableCPF = Math.max(0, availableOA - 20000);
-    const originalS2Cpf = s2Cpf;
-    s2Cpf = Math.max(s2Cpf, Math.min(availableCPF, remainingPrice));
-    loanAmount = Math.round(Math.max(0, remainingPrice - s2Cpf));
-    if (s2Cpf > originalS2Cpf) {
-      stage2Items.push({ label: 'HDB Rule: Drain OA (Retain $20k)', value: s2Cpf - originalS2Cpf, cls: 'cpf' });
+    // HDB housing loan rule: must use excess OA balance (above $20,000) to reduce the loan amount
+    const availableExcessOA = Math.max(0, projectedCombinedOA - s2Cpf - 20000);
+    const loanReduction = Math.min(baseLoanAmount, availableExcessOA);
+
+    loanAmount = baseLoanAmount - loanReduction;
+    if (loanReduction > 0) {
+      s2Cpf += loanReduction;
+      stage2Items.push({ label: 'HDB Rule: Use Excess OA to Reduce Loan', value: loanReduction, cls: 'cpf' });
       totalCpf = s1Cpf + s2Cpf;
     }
   } else {
-    loanAmount = Math.round(Math.min(price, valuation) * CPF_CONFIG.hdbLtv);
+    loanAmount = baseLoanAmount;
   }
   const effectiveLoan = loanAmount;
   const monthlyMortgage = calcMortgage(effectiveLoan, loanRate, tenure);
@@ -252,7 +254,6 @@ function calcPath(p, shared) {
 
   let totalCashDeployed = totalCash + reno + monthlyCosts * mop * 12;
   let totalCPFUsed = totalCpf;
-  // Accrued CPF calculated after projection (needs mortgagePaidFromCPF data)
 
   // Deduct downpayment + BSD from starting OA
   const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
@@ -270,7 +271,7 @@ function calcPath(p, shared) {
     s1StartingOA = Math.max(0, shared.s1OA - Math.round(s1Cpf * s1Share));
     s2StartingOA = Math.max(0, shared.s2OA - Math.round(s1Cpf * (1 - s1Share)));
 
-    // Pre-compute the exact Stage 2 CPF used (s2Cpf) to inject at key collection
+    // Pre-compute the exact final Stage 2 CPF used (s2Cpf) to drain from the projection loop
     const projOaTotal = projectedS1OA + projectedS2OA;
     const s1ProjShare = projOaTotal > 0 ? projectedS1OA / projOaTotal : 0.5;
     s1Stage2Deduction = Math.round(s2Cpf * s1ProjShare);
