@@ -14,6 +14,7 @@
       <a href="index.html" class="nav-link">Home</a>
       <a href="salary.html" class="nav-link">Salary Calculator</a>
       <a href="bto.html" class="nav-link active">BTO Calculator</a>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
     </div>
   </nav>
 
@@ -533,5 +534,19 @@
 
   <script src="js/cpf-engine.js"></script>
   <script src="js/bto.js"></script>
+  <script>
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      document.querySelectorAll('.theme-toggle').forEach(btn => btn.textContent = next === 'light' ? '☀️' : '🌙');
+    }
+    (function() {
+      const saved = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', saved);
+      document.querySelectorAll('.theme-toggle').forEach(btn => btn.textContent = saved === 'light' ? '☀️' : '🌙');
+    })();
+  </script>
 </body>
 </html>

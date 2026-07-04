@@ -186,15 +186,18 @@ function renderCharts(hRows, wRows, hFinal, wFinal) {
   const combinedMA = ages.map((_, i) => hMA[i] + wMA[i]);
   const combinedNW = ages.map((_, i) => hRows[i].netWorth + wRows[i].netWorth);
 
+  const chartGrid = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1e293b';
+  const chartLabel = getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() || '#64748b';
+
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: true,
     plugins: {
-      legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+      legend: { labels: { color: chartLabel, font: { size: 11 } } },
     },
     scales: {
-      x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: '#1e293b' } },
-      y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#1e293b' } },
+      x: { ticks: { color: chartLabel, font: { size: 10 } }, grid: { color: chartGrid } },
+      y: { ticks: { color: chartLabel, font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: chartGrid } },
     },
   };
 

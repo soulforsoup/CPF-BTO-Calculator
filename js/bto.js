@@ -972,13 +972,16 @@ function renderBTOCharts(a, b) {
   Object.values(btoCharts).forEach(c => c.destroy());
   btoCharts = {};
 
+  const chartGrid = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#1e293b';
+  const chartLabel = getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() || '#64748b';
+
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: true,
-    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+    plugins: { legend: { labels: { color: chartLabel, font: { size: 11 } } } },
     scales: {
-      x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
-      y: { ticks: { color: '#64748b', callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#1e293b' } },
+      x: { ticks: { color: chartLabel }, grid: { color: chartGrid } },
+      y: { ticks: { color: chartLabel, callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: chartGrid } },
     },
   };
 
