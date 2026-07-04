@@ -238,16 +238,34 @@ function calcPath(p, shared) {
   let totalCPFUsed = totalCpf;
   // Accrued CPF calculated after projection (needs mortgagePaidFromCPF data)
 
-  // Deduct downpayment + BSD from starting OA (both scenarios)
+  // Deduct downpayment + BSD from starting OA
   let s1StartingOA = shared.s1OA;
   let s2StartingOA = shared.s2OA;
-  {
+  let s1Stage2Deduction = 0;
+  let s2Stage2Deduction = 0;
+
+  if (timeline === 'resale') {
+    // Resale: Deduct full 25% + BSD upfront
     const availableCPF = Math.max(0, currentCombinedOA - 20000);
     const cpfForDP = Math.min(availableCPF, price * 0.25);
     const totalDeduction = cpfForDP + bsd;
     const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
     s1StartingOA = Math.max(0, shared.s1OA - Math.round(totalDeduction * s1Share));
     s2StartingOA = Math.max(0, shared.s2OA - Math.round(totalDeduction * (1 - s1Share)));
+  } else {
+    // BTO: Deduct only Stage 1 (5% + BSD) upfront
+    const stage1Total = price * 0.05 + bsd;
+    const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
+    s1StartingOA = Math.max(0, shared.s1OA - Math.round(stage1Total * s1Share));
+    s2StartingOA = Math.max(0, shared.s2OA - Math.round(stage1Total * (1 - s1Share)));
+
+    // Pre-compute Stage 2 (20% minus grants) to inject at buildTime
+    const grantOffset = Math.min(grants, price * 0.20);
+    const stage2Net = Math.max(0, price * 0.20 - grantOffset);
+    const projOaTotal = projectedS1OA + projectedS2OA;
+    const s1ProjShare = projOaTotal > 0 ? projectedS1OA / projOaTotal : 0.5;
+    s1Stage2Deduction = Math.round(stage2Net * s1ProjShare);
+    s2Stage2Deduction = Math.round(stage2Net * (1 - s1ProjShare));
   }
 
   // Mortgage shares based on current income (before projection)
@@ -267,6 +285,8 @@ function calcPath(p, shared) {
     monthlyMortgage: monthlyMortgage * s1MortgageShare,
     mortgageTenure: mop,
     mortgageStartAge: shared.s1Age + buildTime,
+    lumpSumDeductionAmount: s1Stage2Deduction,
+    lumpSumDeductionYear: buildTime,
   });
   const s2Proj = projectCPF({
     currentAge: shared.s2Age, grossMonthlySalary: shared.s2Income,
@@ -277,6 +297,8 @@ function calcPath(p, shared) {
     monthlyMortgage: monthlyMortgage * s2MortgageShare,
     mortgageTenure: mop,
     mortgageStartAge: shared.s2Age + buildTime,
+    lumpSumDeductionAmount: s2Stage2Deduction,
+    lumpSumDeductionYear: buildTime,
   });
   const s1Final = s1Proj[s1Proj.length - 1];
   const s2Final = s2Proj[s2Proj.length - 1];
