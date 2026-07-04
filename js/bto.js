@@ -125,7 +125,8 @@ function calcPath(p, shared) {
     // Deduct Stage-1 CPF from OA before projecting forward
     const depositSchemeEarly = document.getElementById(p + '-deposit-scheme').value;
     const stage1PctEarly = depositSchemeEarly === 'sds' ? 0.05 : 0.10;
-    const stage1CpfEstimate = Math.min(shared.s1OA + shared.s2OA, (price * stage1PctEarly) + bsd);
+    const optionFeeEarly = 2000;
+    const stage1CpfEstimate = Math.min(shared.s1OA + shared.s2OA, Math.max(0, (price * stage1PctEarly) + bsd - optionFeeEarly));
     const totalOA = shared.s1OA + shared.s2OA;
     const s1Share = totalOA > 0 ? shared.s1OA / totalOA : 0.5;
     const s2Share = 1 - s1Share;
@@ -225,10 +226,16 @@ function calcPath(p, shared) {
 
   let loanAmount;
   if (loanType === 'hdb') {
+    const stage1Principal = timeline === 'bto' ? (price * (document.getElementById(p + '-deposit-scheme').value === 'sds' ? 0.05 : 0.10)) : 5000;
+    const remainingPrice = Math.max(0, price - stage1Principal - grants);
     const availableCPF = Math.max(0, availableOA - 20000);
-    const cpfForDownpayment = Math.min(availableCPF, Math.max(0, price - grants));
-    loanAmount = Math.round(Math.max(0, price - cpfForDownpayment - grants));
-    s2Cpf = cpfForDownpayment;
+    const originalS2Cpf = s2Cpf;
+    s2Cpf = Math.max(s2Cpf, Math.min(availableCPF, remainingPrice));
+    loanAmount = Math.round(Math.max(0, remainingPrice - s2Cpf));
+    if (s2Cpf > originalS2Cpf) {
+      stage2Items.push({ label: 'HDB Rule: Drain OA (Retain $20k)', value: s2Cpf - originalS2Cpf, cls: 'cpf' });
+      totalCpf = s1Cpf + s2Cpf;
+    }
   } else {
     loanAmount = Math.round(Math.min(price, valuation) * CPF_CONFIG.hdbLtv);
   }
@@ -248,37 +255,26 @@ function calcPath(p, shared) {
   // Accrued CPF calculated after projection (needs mortgagePaidFromCPF data)
 
   // Deduct downpayment + BSD from starting OA
+  const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
   let s1StartingOA = shared.s1OA;
   let s2StartingOA = shared.s2OA;
   let s1Stage2Deduction = 0;
   let s2Stage2Deduction = 0;
 
   if (timeline === 'resale') {
-    // Resale: Deduct full 25% + BSD upfront
-    const availableCPF = Math.max(0, currentCombinedOA - 20000);
-    const cpfForDP = Math.min(availableCPF, price * 0.25);
-    const totalDeduction = cpfForDP + bsd;
-    const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
-    s1StartingOA = Math.max(0, shared.s1OA - Math.round(totalDeduction * s1Share));
-    s2StartingOA = Math.max(0, shared.s2OA - Math.round(totalDeduction * (1 - s1Share)));
+    // Resale: All CPF usage (totalCpf) happens upfront
+    s1StartingOA = Math.max(0, shared.s1OA - Math.round(totalCpf * s1Share));
+    s2StartingOA = Math.max(0, shared.s2OA - Math.round(totalCpf * (1 - s1Share)));
   } else {
-    // BTO: Deduct Stage 1 upfront, Stage 2 via lumpSum at buildTime
-    const depositScheme = document.getElementById(p + '-deposit-scheme').value;
-    const stage1Pct = depositScheme === 'sds' ? 0.05 : 0.10;
-    const stage2Pct = depositScheme === 'sds' ? 0.20 : 0.15;
+    // BTO: Deduct only the exact Stage 1 CPF used (s1Cpf) upfront
+    s1StartingOA = Math.max(0, shared.s1OA - Math.round(s1Cpf * s1Share));
+    s2StartingOA = Math.max(0, shared.s2OA - Math.round(s1Cpf * (1 - s1Share)));
 
-    const stage1Total = price * stage1Pct + bsd;
-    const s1Share = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
-    s1StartingOA = Math.max(0, shared.s1OA - Math.round(stage1Total * s1Share));
-    s2StartingOA = Math.max(0, shared.s2OA - Math.round(stage1Total * (1 - s1Share)));
-
-    // Pre-compute Stage 2 to inject at buildTime
-    const grantOffset = Math.min(grants, price * stage2Pct);
-    const stage2Net = Math.max(0, price * stage2Pct - grantOffset);
+    // Pre-compute the exact Stage 2 CPF used (s2Cpf) to inject at key collection
     const projOaTotal = projectedS1OA + projectedS2OA;
     const s1ProjShare = projOaTotal > 0 ? projectedS1OA / projOaTotal : 0.5;
-    s1Stage2Deduction = Math.round(stage2Net * s1ProjShare);
-    s2Stage2Deduction = Math.round(stage2Net * (1 - s1ProjShare));
+    s1Stage2Deduction = Math.round(s2Cpf * s1ProjShare);
+    s2Stage2Deduction = Math.round(s2Cpf * (1 - s1ProjShare));
   }
 
   // Mortgage shares based on current income (before projection)
