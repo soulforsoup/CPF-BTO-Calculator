@@ -304,17 +304,8 @@ function calcPath(p, shared) {
   const s2Final = s2Proj[s2Proj.length - 1];
 
   // Stage 2 shortfall check (BTO only)
-  if (timeline === 'bto' && buildTime > 0) {
-    const stage2Amount = Math.max(0, price * 0.20 - grants);
-    const s1AtBuild = s1Proj.find(r => r.age === shared.s1Age + buildTime);
-    const s2AtBuild = s2Proj.find(r => r.age === shared.s2Age + buildTime);
-    if (s1AtBuild && s2AtBuild) {
-      const totalOaAtBuild = s1AtBuild.oa + s2AtBuild.oa;
-      const stage2Shortfall = Math.max(0, stage2Amount - totalOaAtBuild);
-      if (stage2Shortfall > 0) {
-        stage2Items.push({ label: '⚠ OA Shortfall → Cash', value: stage2Shortfall, cls: 'warning' });
-      }
-    }
+  if (timeline === 'bto' && s2Cash > 0) {
+    stage2Items.push({ label: '⚠ OA Shortfall → Cash', value: s2Cash, cls: 'warning' });
   }
 
   // Per-spouse accrued CPF tracking
