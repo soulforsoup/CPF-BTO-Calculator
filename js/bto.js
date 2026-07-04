@@ -729,17 +729,29 @@ function renderRetirementProjection(r, path) {
   html += `
     <div class="retirement-stage-title">Husband at ${r.retirementAge}</div>
     <div class="retirement-row"><span class="label">CPF (OA + RA + MA)</span><span class="value cpf">${formatCurrency(s1.totalCPF)}</span></div>
+    <div class="retirement-row"><span class="label">├─ OA</span><span class="value">${formatCurrency(s1.oa)}</span></div>
+    <div class="retirement-row"><span class="label">├─ RA</span><span class="value">${formatCurrency(s1.ra)}</span></div>
+    <div class="retirement-row"><span class="label">└─ MA</span><span class="value">${formatCurrency(s1.ma)}</span></div>
     <div class="retirement-row"><span class="label">Cash</span><span class="value${cashClass1}">${formatCurrency(s1.cash)}</span></div>
-    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout</span><span class="value">${formatCurrency(r.cpfLife1)}/mo</span></div>
+    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout <span class="tip" data-tip="Based on RA balance at retirement. Capped by FRS at age 55 (e.g. \$220,400 in 2026, growing 3.5%/yr). Higher salary increases OA/cash, not CPF LIFE once you hit the cap.">?</span></span><span class="value">${formatCurrency(r.cpfLife1)}/mo</span></div>
+    <div class="retirement-row"><span class="label">OA Drawdown (20yr)</span><span class="value">${formatCurrency(Math.round(s1.oa / 240))}/mo</span></div>
+    <div class="retirement-row total"><span class="label">Total Monthly Income</span><span class="value">${formatCurrency(r.cpfLife1 + Math.round(s1.oa / 240))}/mo</span></div>
     <div class="retirement-stage-title" style="margin-top:0.75rem;">Wife at ${r.retirementAge}</div>
     <div class="retirement-row"><span class="label">CPF (OA + RA + MA)</span><span class="value cpf">${formatCurrency(s2.totalCPF)}</span></div>
+    <div class="retirement-row"><span class="label">├─ OA</span><span class="value">${formatCurrency(s2.oa)}</span></div>
+    <div class="retirement-row"><span class="label">├─ RA</span><span class="value">${formatCurrency(s2.ra)}</span></div>
+    <div class="retirement-row"><span class="label">└─ MA</span><span class="value">${formatCurrency(s2.ma)}</span></div>
     <div class="retirement-row"><span class="label">Cash</span><span class="value${cashClass2}">${formatCurrency(s2.cash)}</span></div>
-    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout</span><span class="value">${formatCurrency(r.cpfLife2)}/mo</span></div>
+    <div class="retirement-row"><span class="label">Est. CPF LIFE Payout <span class="tip" data-tip="Based on RA balance at retirement. Capped by FRS at age 55 (e.g. \$220,400 in 2026, growing 3.5%/yr). Higher salary increases OA/cash, not CPF LIFE once you hit the cap.">?</span></span><span class="value">${formatCurrency(r.cpfLife2)}/mo</span></div>
+    <div class="retirement-row"><span class="label">OA Drawdown (20yr)</span><span class="value">${formatCurrency(Math.round(s2.oa / 240))}/mo</span></div>
+    <div class="retirement-row total"><span class="label">Total Monthly Income</span><span class="value">${formatCurrency(r.cpfLife2 + Math.round(s2.oa / 240))}/mo</span></div>
     <div class="retirement-row total"><span class="label">Combined CPF</span><span class="value cpf">${formatCurrency(r.combinedCPFAtRetire)}</span></div>
     <div class="retirement-row total"><span class="label">Combined Cash</span><span class="value${combinedCashClass}">${formatCurrency(r.combinedCashAtRetire)}</span></div>
     <div class="retirement-row total"><span class="label">Property Value (est.)</span><span class="value">${formatCurrency(r.totalPropertyValue)}</span></div>
     <div class="retirement-row total"><span class="label">Total Net Worth</span><span class="value">${formatCurrency(r.totalNetWorthAtRetire)}</span></div>
     <div class="retirement-row total"><span class="label">Combined CPF LIFE</span><span class="value">${formatCurrency(r.cpfLifeTotal)}/mo</span></div>
+    <div class="retirement-row total"><span class="label">Combined OA Drawdown</span><span class="value">${formatCurrency(Math.round((s1.oa + s2.oa) / 240))}/mo</span></div>
+    <div class="retirement-row total"><span class="label">Total Monthly Retirement Income</span><span class="value">${formatCurrency(r.cpfLifeTotal + Math.round((s1.oa + s2.oa) / 240))}/mo</span></div>
   `;
 
   el.innerHTML = html;
