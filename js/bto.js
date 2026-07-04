@@ -159,7 +159,7 @@ function calcPath(p, shared) {
 
     const grantOffset = Math.min(grants, price * 0.20);
     const stage2Total = Math.max(0, price * 0.20 - grantOffset);
-    const remainingOA = Math.max(0, projectedCombinedOA - s1Cpf);
+    const remainingOA = projectedCombinedOA;
     s2Cpf = Math.min(remainingOA, stage2Total);
     s2Cash = Math.max(0, stage2Total - s2Cpf);
 
@@ -219,7 +219,7 @@ function calcPath(p, shared) {
     const availableCPF = Math.max(0, availableOA - 20000);
     const cpfForDownpayment = Math.min(availableCPF, Math.max(0, price - grants));
     loanAmount = Math.round(Math.max(0, price - cpfForDownpayment - grants));
-    s2Cpf = Math.max(0, cpfForDownpayment - s1Cpf);
+    s2Cpf = cpfForDownpayment;
   } else {
     loanAmount = Math.round(Math.min(price, valuation) * CPF_CONFIG.hdbLtv);
   }
