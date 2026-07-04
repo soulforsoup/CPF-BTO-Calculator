@@ -123,7 +123,9 @@ function calcPath(p, shared) {
   let projectedS2OA = shared.s2OA;
   if (timeline === 'bto' && buildTime > 0) {
     // Deduct Stage-1 CPF from OA before projecting forward
-    const stage1CpfEstimate = Math.min(shared.s1OA + shared.s2OA, price * 0.05 + bsd);
+    const depositSchemeEarly = document.getElementById(p + '-deposit-scheme').value;
+    const stage1PctEarly = depositSchemeEarly === 'sds' ? 0.05 : 0.10;
+    const stage1CpfEstimate = Math.min(shared.s1OA + shared.s2OA, (price * stage1PctEarly) + bsd);
     const totalOA = shared.s1OA + shared.s2OA;
     const s1Share = totalOA > 0 ? shared.s1OA / totalOA : 0.5;
     const s2Share = 1 - s1Share;
@@ -158,9 +160,10 @@ function calcPath(p, shared) {
     const stage1Pct = depositScheme === 'sds' ? 0.05 : 0.10;
     const stage2Pct = depositScheme === 'sds' ? 0.20 : 0.15;
 
-    const stage1Total = price * stage1Pct + bsd;
-    s1Cpf = Math.min(currentCombinedOA, stage1Total);
-    s1Cash = Math.max(0, stage1Total - s1Cpf);
+    const optionFee = 2000;
+    const stage1Total = (price * stage1Pct) + bsd;
+    s1Cpf = Math.min(currentCombinedOA, Math.max(0, stage1Total - optionFee));
+    s1Cash = optionFee + Math.max(0, stage1Total - optionFee - s1Cpf);
 
     const grantOffset = Math.min(grants, price * stage2Pct);
     const stage2Total = Math.max(0, price * stage2Pct - grantOffset);
@@ -170,10 +173,11 @@ function calcPath(p, shared) {
 
     excessGrant = grants - grantOffset;
 
-    stage1Label = 'Signing (Now)';
+    stage1Label = depositScheme === 'sds' ? 'Signing (SDS)' : 'Signing (Standard)';
     stage2Label = `Key Collection (Year ${buildTime})`;
     stage1Items = [
-      { label: `${(stage1Pct * 100)}% Signing`, value: price * stage1Pct },
+      { label: 'Option Fee (Cash)', value: optionFee, cls: 'cash' },
+      { label: `Remaining ${(stage1Pct * 100)}% Downpayment`, value: Math.max(0, (price * stage1Pct) - optionFee) },
       { label: 'Buyer\'s Stamp Duty (BSD)', value: bsd },
     ];
     stage2Items = [
@@ -182,7 +186,7 @@ function calcPath(p, shared) {
     if (grantOffset > 0) stage2Items.push({ label: '− CPF Grants', value: -grantOffset, cls: 'cpf' });
     if (excessGrant > 0) stage2Items.push({ label: 'Excess Grant → CPF OA', value: -excessGrant, cls: 'cpf' });
   } else {
-    const optionFees = price > 500000 ? 10000 : 5000;
+    const optionFees = 5000;
     s1Cpf = Math.min(currentCombinedOA, bsd);
     s1Cash = optionFees + Math.max(0, bsd - s1Cpf);
 
