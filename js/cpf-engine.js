@@ -165,6 +165,7 @@ function projectCPF(params) {
     targetAge, monthlyCashSavings, annualBonus,
     monthlyMortgage, mortgageTenure, mortgageStartAge,
     startingCash, hpsPremium,
+    lumpSumDeductionAmount, lumpSumDeductionYear,
   } = params;
 
   let oa = currentOA || 0;
@@ -216,6 +217,14 @@ function projectCPF(params) {
         const hpsDeduction = Math.min(monthlyHPS, oa + yearOA - mortgageDeductedThisYear - hpsPaidThisYear);
         hpsPaidThisYear += Math.max(0, hpsDeduction);
       }
+    }
+
+    // Lump sum deduction (e.g., BTO Stage 2 at key collection)
+    if (lumpSumDeductionAmount && year === lumpSumDeductionYear) {
+      const deduction = Math.min(lumpSumDeductionAmount, oa + yearOA - mortgageDeductedThisYear);
+      oa -= deduction;
+      const shortfall = lumpSumDeductionAmount - deduction;
+      if (shortfall > 0) cash -= shortfall;
     }
 
     if (bonusForCPF > 0) {
@@ -288,7 +297,7 @@ function projectCPF(params) {
       const frsAt55 = Math.round(CPF_CONFIG.frs * Math.pow(1 + CPF_CONFIG.frsGrowthRate, yearsFromProjectionStart));
 
       if (ra < frsAt55) {
-        const toRA = Math.min(yearRA, frsAt55 - ra);
+        const toRA = Math.min(yearRA, Math.max(0, frsAt55 - ra));
         ra += toRA;
         oa += yearRA - toRA;
       } else {

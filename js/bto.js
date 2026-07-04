@@ -7,6 +7,7 @@ const BTO_SHARED_IDS = [
   's1-oa','s1-sa','s1-ma','s2-oa','s2-sa','s2-ma',
   's1-age','s2-age','monthly-cash-savings','buyer-ceiling',
   'retirement-age','mortgage-split',
+  'h-bonus','w-bonus',
 ];
 
 const BTO_PATH_IDS = [
@@ -87,6 +88,8 @@ function readShared() {
     buyerCeiling: +document.getElementById('buyer-ceiling').value,
     retirementAge: +document.getElementById('retirement-age').value,
     mortgageSplit: document.getElementById('mortgage-split').value,
+    s1Bonus: +document.getElementById('h-bonus')?.value || 0,
+    s2Bonus: +document.getElementById('w-bonus')?.value || 0,
   };
 }
 
@@ -235,10 +238,10 @@ function calcPath(p, shared) {
   let totalCPFUsed = totalCpf;
   // Accrued CPF calculated after projection (needs mortgagePaidFromCPF data)
 
-  // For Forever Stay, deduct downpayment + BSD from starting OA
+  // Deduct downpayment + BSD from starting OA (both scenarios)
   let s1StartingOA = shared.s1OA;
   let s2StartingOA = shared.s2OA;
-  if (scenario === 'forever') {
+  {
     const availableCPF = Math.max(0, currentCombinedOA - 20000);
     const cpfForDP = Math.min(availableCPF, price * 0.25);
     const totalDeduction = cpfForDP + bsd;
@@ -259,7 +262,7 @@ function calcPath(p, shared) {
     currentAge: shared.s1Age, grossMonthlySalary: shared.s1Income,
     annualIncrement: shared.s1Increment, currentOA: s1StartingOA,
     currentSA: shared.s1SA, currentMA: shared.s1MA,
-    targetAge: shared.s1Age + totalYears, monthlyCashSavings: 0, annualBonus: 0,
+    targetAge: shared.s1Age + totalYears, monthlyCashSavings: 0, annualBonus: shared.s1Bonus,
     hpsPremium: hps * 12,
     monthlyMortgage: monthlyMortgage * s1MortgageShare,
     mortgageTenure: mop,
@@ -269,7 +272,7 @@ function calcPath(p, shared) {
     currentAge: shared.s2Age, grossMonthlySalary: shared.s2Income,
     annualIncrement: shared.s2Increment, currentOA: s2StartingOA,
     currentSA: shared.s2SA, currentMA: shared.s2MA,
-    targetAge: shared.s2Age + totalYears, monthlyCashSavings: 0, annualBonus: 0,
+    targetAge: shared.s2Age + totalYears, monthlyCashSavings: 0, annualBonus: shared.s2Bonus,
     hpsPremium: hps * 12,
     monthlyMortgage: monthlyMortgage * s2MortgageShare,
     mortgageTenure: mop,
@@ -277,6 +280,20 @@ function calcPath(p, shared) {
   });
   const s1Final = s1Proj[s1Proj.length - 1];
   const s2Final = s2Proj[s2Proj.length - 1];
+
+  // Stage 2 shortfall check (BTO only)
+  if (timeline === 'bto' && buildTime > 0) {
+    const stage2Amount = Math.max(0, price * 0.20 - grants);
+    const s1AtBuild = s1Proj.find(r => r.age === shared.s1Age + buildTime);
+    const s2AtBuild = s2Proj.find(r => r.age === shared.s2Age + buildTime);
+    if (s1AtBuild && s2AtBuild) {
+      const totalOaAtBuild = s1AtBuild.oa + s2AtBuild.oa;
+      const stage2Shortfall = Math.max(0, stage2Amount - totalOaAtBuild);
+      if (stage2Shortfall > 0) {
+        stage2Items.push({ label: '⚠ OA Shortfall → Cash', value: stage2Shortfall, cls: 'warning' });
+      }
+    }
+  }
 
   // Per-spouse accrued CPF tracking
   const s1ShareOfCPF = currentCombinedOA > 0 ? shared.s1OA / currentCombinedOA : 0.5;
@@ -294,8 +311,9 @@ function calcPath(p, shared) {
       s1RunningCpf += (s1Proj[y]?.mortgagePaidFromCPF || 0) + (s1Proj[y]?.hpsPaidFromCPF || 0);
       s2RunningCpf += (s2Proj[y]?.mortgagePaidFromCPF || 0) + (s2Proj[y]?.hpsPaidFromCPF || 0);
     }
-    s1RunningCpf *= (1 + CPF_CONFIG.oaRate);
-    s2RunningCpf *= (1 + CPF_CONFIG.oaRate);
+    const effectiveAnnualRate = Math.pow(1 + CPF_CONFIG.oaRate / 12, 12);
+    s1RunningCpf *= effectiveAnnualRate;
+    s2RunningCpf *= effectiveAnnualRate;
   }
 
   const s1CpfRefunded = Math.round(s1RunningCpf);
@@ -316,7 +334,7 @@ function calcPath(p, shared) {
   const netCashProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP - cpfRefunded);
 
   // Capped CPF refund (negative sale scenario: HDB writes off shortfall)
-  const saleProceeds = Math.max(0, sellingPrice - agentCommission - subsidyClawback - resaleLevyAmt - mortgageBalanceAtMOP);
+  const saleProceeds = Math.max(0, sellingPrice - subsidyClawback - mortgageBalanceAtMOP);
   const actualCpfRefund = Math.min(cpfRefunded, saleProceeds);
   cpfRefunded = actualCpfRefund;
   const s1ActualRefund = cpfRefunded > 0 ? Math.round(actualCpfRefund * (s1CpfRefunded / cpfRefunded)) : 0;
@@ -818,6 +836,8 @@ function loadSalaryData() {
       document.getElementById('s2-ma').value = saved.spouse2.ma;
       document.getElementById('s1-age').value = saved.spouse1.age;
       document.getElementById('s2-age').value = saved.spouse2.age;
+      if (saved.spouse1.bonus !== undefined) document.getElementById('h-bonus').value = saved.spouse1.bonus;
+      if (saved.spouse2.bonus !== undefined) document.getElementById('w-bonus').value = saved.spouse2.bonus;
       if (saved.monthlySavings) {
         document.getElementById('monthly-cash-savings').value = saved.monthlySavings;
       }

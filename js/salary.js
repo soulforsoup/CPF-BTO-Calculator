@@ -1,9 +1,9 @@
 let charts = {};
 
 const SALARY_INPUT_IDS = [
-  'h-age','h-salary','h-increment','h-oa','h-sa','h-ma',
-  'w-age','w-salary','w-increment','w-oa','w-sa','w-ma',
-  'retirement-age','monthly-savings','annual-bonus',
+  'h-age','h-salary','h-increment','h-oa','h-sa','h-ma','h-bonus',
+  'w-age','w-salary','w-increment','w-oa','w-sa','w-ma','w-bonus',
+  'retirement-age','monthly-savings',
 ];
 
 function saveSalaryInputs() {
@@ -19,6 +19,7 @@ function saveSalaryInputs() {
       oa: +document.getElementById('h-oa').value,
       sa: +document.getElementById('h-sa').value,
       ma: +document.getElementById('h-ma').value,
+      bonus: +document.getElementById('h-bonus').value,
     },
     spouse2: {
       age: +document.getElementById('w-age').value,
@@ -27,6 +28,7 @@ function saveSalaryInputs() {
       oa: +document.getElementById('w-oa').value,
       sa: +document.getElementById('w-sa').value,
       ma: +document.getElementById('w-ma').value,
+      bonus: +document.getElementById('w-bonus').value,
     },
     monthlySavings: +document.getElementById('monthly-savings').value || 0,
   }));
@@ -70,11 +72,10 @@ function calculate() {
   };
 
   const sharedSavings = +document.getElementById('monthly-savings').value || 0;
-  const sharedBonus = +document.getElementById('annual-bonus').value || 0;
   hData.monthlyCashSavings = sharedSavings / 2;
   wData.monthlyCashSavings = sharedSavings / 2;
-  hData.annualBonus = sharedBonus / 2;
-  wData.annualBonus = sharedBonus / 2;
+  hData.annualBonus = +document.getElementById('h-bonus').value || 0;
+  wData.annualBonus = +document.getElementById('w-bonus').value || 0;
 
   const hRows = projectCPF(hData);
   const wRows = projectCPF(wData);
